@@ -1,0 +1,39 @@
+# EndoLog — Strict Zero-PHI, Zero-Image & Secret Protection (.gitignore)
+# Căn cứ pháp lý tham chiếu: Luật KCB 15/2023/QH15, Luật BVDLCN 91/2025/QH15, Nghị định 356/2025/NĐ-CP
+
+# 1. Dữ liệu lâm sàng nội bộ, Dữ liệu dev tổng hợp & Bản sao lưu (CLS-04 & CLS-05)
+data/
+data_real_clinical/
+data_synthetic_dev/
+data_backups/
+02_DuLieu_Tho/
+03_ThongKe/
+*.sqlite
+*.sqlite3
+*.db
+*.xlsx
+*.xls
+*.csv
+*.parquet
+*.arrow
+*.dcm
+
+# 2. Khóa bí mật & Biến môi trường
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# 3. Bộ nhớ đệm Python, Node & Kiểm thử
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+playwright-report/
+test-results/
+.DS_Store

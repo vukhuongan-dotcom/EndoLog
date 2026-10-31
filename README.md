@@ -73,15 +73,17 @@ PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_ssot.py
 
 ---
 
-## 3. Đóng Gói & Kiểm Chứng Gate C — Bản Trình Diễn Tĩnh `/endolog/` (`Phương Án G1` / `G06`)
+## 3. Đóng Gói & Kiểm Chứng Gate C — Bản Trình Diễn Tĩnh `/EndoLog/` (`Phương Án G1` / `G06`)
+
+- **Bản trình diễn tĩnh công khai (chỉ đọc, 5 ca chuẩn `OD-05`, khóa nhập PHI):** https://vukhuongan-dotcom.github.io/EndoLog/
 
 ```bash
-# 1. Sinh gói trình diễn tĩnh chỉ đọc cho đường dẫn con /endolog/ (không sửa src/endolog/static/)
-PYTHONDONTWRITEBYTECODE=1 python3 tools/build_gh_pages_demo.py --output dist_pages --base-path /endolog/
+# 1. Sinh gói trình diễn tĩnh chỉ đọc cho đường dẫn con /EndoLog/ (không sửa src/endolog/static/)
+PYTHONDONTWRITEBYTECODE=1 python3 tools/build_gh_pages_demo.py --output dist_pages --base-path /EndoLog/
 
 # 2. Quét Clean-Room lịch sử Git, Gitleaks & gói dist_pages/ (0 PHI, 0 input password/file, 0 khóa bí mật)
-PYTHONDONTWRITEBYTECODE=1 python3 tools/verify_gate_c_clean_room.py --require-gitleaks
+PYTHONDONTWRITEBYTECODE=1 python3 tools/verify_gate_c_clean_room.py --base-path /EndoLog/ --require-gitleaks
 
-# 3. Chạy kiểm thử E2E Chromium TC-G06 trên máy chủ mô phỏng đường dẫn con http://127.0.0.1:<port>/endolog/
-PYTHONDONTWRITEBYTECODE=1 python3 tools/verify_gh_pages_playwright_g06.py --dist-dir dist_pages
+# 3. Chạy kiểm thử E2E Chromium TC-G06 trên máy chủ mô phỏng đường dẫn con http://127.0.0.1:<port>/EndoLog/
+PYTHONDONTWRITEBYTECODE=1 python3 tools/verify_gh_pages_playwright_g06.py --dist-dir dist_pages --base-path /EndoLog/
 ```

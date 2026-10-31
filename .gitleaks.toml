@@ -1,0 +1,31 @@
+title = "EndoLog Gate C Secret & Zero-PHI Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "endolog-profile-a-vault-envelope"
+description = "Encrypted EndoLog Profile A vault blob committed to Git or static Pages bundle"
+regex = '''(?:"contract"\s*:\s*"EndoLog-Export-Profile-A-v[0-9.]+"[\s\S]{0,360}?"ciphertext_hex"\s*:\s*"[0-9a-fA-F]{64,}"|"ciphertext_hex"\s*:\s*"[0-9a-fA-F]{64,}"[\s\S]{0,360}?"contract"\s*:\s*"EndoLog-Export-Profile-A-v[0-9.]+")'''
+tags = ["endolog", "phi-vault", "high"]
+
+[[rules]]
+id = "endolog-phi-vault-marker-file"
+description = "EndoLog clinical PHI directory marker file committed to Git"
+path = '''(^|/)\.phi_vault_marker$'''
+regex = '''.+'''
+tags = ["endolog", "phi-marker", "critical"]
+
+[allowlist]
+description = "Allow only explicit synthetic test sentinel literals and font license files"
+regexTarget = "secret"
+regexes = [
+  '''^phase4b-test-jwt-secret-key-32-chars$''',
+  '''^integration-test-jwt-secret-key-32-chars$''',
+  '''^test-jwt-secret-key-at-least-32-characters-long$''',
+  '''^regression-test-jwt-secret-key-32-chars$''',
+  '''^SYNTHETIC_401_WIPE_E2E$''',
+]
+paths = [
+  '''^docs/brand/fonts/OFL-.*\.txt$''',
+]

@@ -1,0 +1,115 @@
+name: Gate C Clean-Room Verify & Deploy Showcase to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: endolog-gh-pages-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify-and-build-pages:
+    name: Clean-Room Audit, Pytest, Build & Playwright G06 Gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout full Git history for Clean-Room Audit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Gitleaks v8.30.1 (SHA-256 pinned, MIT CLI)
+        run: |
+          set -euo pipefail
+          GL_ARCHIVE="${RUNNER_TEMP}/gitleaks_8.30.1_linux_x64.tar.gz"
+          GL_BIN_DIR="${RUNNER_TEMP}/gitleaks-bin"
+          mkdir -p "${GL_BIN_DIR}"
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" -o "${GL_ARCHIVE}"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  ${GL_ARCHIVE}" | sha256sum -c -
+          tar -xzf "${GL_ARCHIVE}" -C "${GL_BIN_DIR}" gitleaks
+          chmod +x "${GL_BIN_DIR}/gitleaks"
+          echo "${GL_BIN_DIR}" >> "${GITHUB_PATH}"
+          "${GL_BIN_DIR}/gitleaks" version
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Setup Node.js 20 (for JS syntax check)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install EndoLog & Verification Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m playwright install --with-deps chromium
+
+      - name: Gate C.1 — Verify Git Tracked Files, Full History & Gitleaks
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python tools/verify_gate_c_clean_room.py --check-git --require-gitleaks
+
+      - name: Gate C.2 — Run Full Automated Pytest Suite
+        env:
+          PYTHONPATH: .:src
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python -m pytest -p no:cacheprovider -v
+
+      - name: Gate C.3 — Verify WCAG 2.1 AA Contrast (62/62) & Dual SSoT Parity
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python tools/check_contrast.py
+          python scripts/check_ssot.py
+
+      - name: Gate C.4 — Build Showcase-Only Synthetic Sandbox (/endolog/)
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python tools/build_gh_pages_demo.py --output dist_pages --base-path /endolog/
+
+      - name: Gate C.5 — Verify dist_pages/ Zero-PHI & Secret Clean-Room
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python tools/verify_gate_c_clean_room.py --check-dist --dist-dir dist_pages --base-path /endolog/ --require-gitleaks
+
+      - name: Gate C.6 — Run Playwright TC-G06 Subpath E2E Verification (/endolog/)
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python tools/verify_gh_pages_playwright_g06.py --dist-dir dist_pages
+
+      - name: Upload Pages Artifact (main / manual dispatch only)
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist_pages/
+
+  deploy-pages:
+    name: Publish Showcase-Only Sandbox to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: verify-and-build-pages
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

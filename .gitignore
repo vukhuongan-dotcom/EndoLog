@@ -18,14 +18,20 @@ data_backups/
 *.arrow
 *.dcm
 
-# 2. Khóa bí mật & Biến môi trường
+# 2. Khóa bí mật, Kho sao lưu mã hóa & Biến môi trường
 .env
 .env.*
 !.env.example
 *.pem
 *.key
+*.enc
+*.endolog.enc
 
-# 3. Bộ nhớ đệm Python, Node & Kiểm thử
+# 3. Gói xuất bản tĩnh GitHub Pages & Báo cáo quét bí mật tạm (Gate C — G06)
+dist_pages/
+.gitleaks-report*.json
+
+# 4. Bộ nhớ đệm Python, Node & Kiểm thử
 __pycache__/
 *.py[cod]
 .pytest_cache/

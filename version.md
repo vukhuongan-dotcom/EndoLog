@@ -5,6 +5,20 @@ Mọi thay đổi đáng chú ý của dự án **EndoLog** (*Hệ Thống Sổ 
 Định dạng tuân thủ chuẩn [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) và quy tắc đánh số phiên bản theo [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) (`MAJOR.MINOR.PATCH`).
 Các nhóm phân loại hợp lệ: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.3.1] - 2026-10-31
+
+### Added
+- Triển khai **Gate C — Phương Án G1 (`G06` · Kho GitHub Sạch & Bản Trình Diễn Tĩnh `/endolog/` Khóa Nhập PHI)** theo phê duyệt của `BSCKII. Vũ Khương An`:
+  - **Trình đóng gói tĩnh theo đường dẫn con (`tools/build_gh_pages_demo.py` -> `dist_pages/` nằm trong `.gitignore`):** giữ nguyên `100%` `src/endolog/static/` cho máy chủ FastAPI `/`, tự động sinh dữ liệu hiển thị cho `5` ca lâm sàng giả lập chuẩn `OD-05`, bảng KPI (`≥ 45` & `≥ 50` tuổi) và chuỗi `QC-CUSUM` (`CIR` & `ERCP_NATIVE`) trực tiếp từ động cơ Python (`0` nhân bản công thức y khoa sang JavaScript), viết lại đường dẫn tài nguyên tương đối cho `/endolog/`, cập nhật `manifest.json` (`start_url: "/endolog/"`, `scope: "/endolog/"`) và sinh tệp `.nojekyll`.
+  - **Chế độ trình diễn chỉ đọc `ENDOLOG_STATIC_DEMO` (`dist_pages/js/demo-synthetic-adapter.js` + `dist_pages/css/demo-showcase.css`):** gắn biểu ngữ cảnh báo cố định đầu trang chuẩn tiếng Việt, mở đầy đủ tương tác xem cục bộ trên 3 màn hình lõi (`Nhật ký ca soi`, `Hẹn soi lại`, `Chỉ số chất lượng`), bộ lọc phân hệ/tìm kiếm, chuyển chế độ `Sáng / Tối`, chuyển đoàn hệ tuổi `ADR`, chuyển chỉ số `QC-CUSUM`, hộp thoại `Chi tiết` 4 pha và bố cục minh họa chỉ đọc của bảng quản trị Superadmin (`0` truy vấn mạng `/api/*`, `0` lỗi `404`).
+  - **Service Worker cô lập tiền tố trên cùng tên miền GitHub Pages (`dist_pages/sw-demo.js`):** đăng ký `navigator.serviceWorker.register('./sw-demo.js', { scope: './' })` với khóa bộ nhớ đệm `endolog-ghpages-demo-v0.3.1` và cơ chế dọn dẹp nghiêm ngặt theo tiền tố `k.startsWith('endolog-ghpages-demo-')`, bảo vệ tuyệt đối Cache Storage của các ứng dụng anh em cùng origin `vukhuongan-dotcom.github.io` (như `Idea Agent`).
+  - **Đường ống kiểm chứng & phát hành GitHub Actions (`.github/workflows/deploy-pages.yml`, `tools/verify_gh_pages_playwright_g06.py`, `tests/test_gh_pages_demo_g06.py`):** tự động thực thi kiểm toán Clean-Room lịch sử Git, `pytest` (`42/42`), `check_contrast.py` (`62/62`), `check_ssot.py`, đóng gói `dist_pages/`, quét sạch `dist_pages/` và kiểm thử E2E Chromium `TC-G06` trên đường dẫn con `/endolog/` trước khi đẩy lên `actions/deploy-pages@v4` ([FEAT-011]).
+
+### Security
+- Thiết lập hàng rào kiểm toán phòng sạch đa tầng cho kho mã nguồn công khai/nội bộ và gói tĩnh GitHub Pages (`.gitleaks.toml`, `.gitignore`, `tools/verify_gate_c_clean_room.py`):
+  - Cấm tuyệt đối mọi phần tử `input[type="password"]` và `input[type="file"]` trong `dist_pages/index.html` (kèm chốt chặn runtime `MutationObserver` thu hồi tức thì nếu có mã chèn động), đồng thời chuyển hướng mọi thao tác ghi/nhập liệu (`Thêm ca soi`, `Sửa pha`, `Lưu cấu hình`, `Khôi phục Hồ sơ A`, `Gộp người bệnh`, `Đối soát đợt nội trú`, `Đặt lại / Đổi mật khẩu`, `Xuất Hồ sơ A/B/C`) sang hộp thoại khóa an toàn Zero-PHI tiếng Việt (`#el-demo-lock-modal-backdrop`).
+  - Quét tự động toàn bộ danh sách tệp theo dõi (`git ls-files`), toàn bộ lịch sử commit (`git log -p --all` + `gitleaks git`) và gói xuất bản `dist_pages/` (`gitleaks dir`), xác nhận `0` thư mục dữ liệu `data*/`, `0` tệp sao lưu mã hóa `*.enc`, `0` khóa bí mật/mật khẩu và `0` dữ liệu định danh người bệnh thật ngoài `5` ca giả lập `OD-05`.
+
 ## [0.3.0] - 2026-10-31
 
 ### Added

@@ -950,8 +950,10 @@ def test_tc_frontend_superadmin_and_password_modal_hooks() -> None:
     ):
         assert required_id in index_html, f"Missing {required_id} in index.html"
 
-    assert "?v=0.3.0" in index_html
-    assert "v0.3.0" in sw_js
+    from endolog import __version__
+
+    assert f"?v={__version__}" in index_html
+    assert f"v{__version__}" in sw_js
     assert "'W/\"e' + drawerState.expectedStoreEpoch + ':v' + drawerState.expectedVersion + '\"'" in app_js
     assert "expected_store_epoch" in app_js
     assert "/api/admin/restore-profile-a" in app_js

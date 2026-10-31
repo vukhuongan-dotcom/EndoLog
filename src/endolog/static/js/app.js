@@ -186,6 +186,7 @@
 
   const state = {
     user: null,
+    storeEpoch: 1,
     activeView: 'cases',
     trackFilter: 'ALL',
     survFilter: 'ALL',
@@ -197,13 +198,21 @@
       colo_guideline_mode: 'USMSTF_2020',
       adr_min_age: 45,
       cusum_preset: 'DEFAULT_90',
-      kpi_min_sample_size: 20
+      kpi_min_sample_size: 20,
+      export_dataset_epoch: 1,
+      profile_b_lineage_seq: 1
     },
     cases: [],
     surveillanceRows: [],
     kpiBundle: null,
     cusumData: null,
     auditStatus: null,
+    adminPatients: null,
+    adminUsers: null,
+    restoreVaultText: '',
+    restorePreserveUsers: true,
+    mergeDemoConfirm: false,
+    mergeMrnOverride: false,
     idleTimer: null,
     hardExpiryTimer: null
   };
@@ -214,6 +223,7 @@
     editingCaseId: null,
     editingCaseCode: '',
     expectedVersion: 1,
+    expectedStoreEpoch: 1,
     activePhase: 'p1',
     track: 'COL',
     sex: 'M',
@@ -246,6 +256,11 @@
   const detailModalState = {
     isOpen: false,
     caseId: null,
+    returnFocusEl: null
+  };
+
+  const passwordModalState = {
+    isOpen: false,
     returnFocusEl: null
   };
 
@@ -1195,6 +1210,260 @@
     }
 
     syncSettingsPanelInputs();
+    renderSuperadminPanel();
+  }
+
+  function formatViDateTime(isoStr) {
+    if (!isoStr) return 'Chưa ghi nhận';
+    const raw = String(isoStr).trim();
+    const datePart = formatViDate(raw);
+    const m = raw.match(/T(\d{2}:\d{2}:\d{2})/);
+    return m ? (datePart + ' ' + m[1]) : datePart;
+  }
+
+  function setAdminFeedback(elId, message, isOk) {
+    const el = byId(elId);
+    if (!el) return;
+    if (!message) {
+      el.textContent = '';
+      el.className = 'el-admin-feedback';
+      el.hidden = true;
+      return;
+    }
+    el.textContent = String(message);
+    el.className = 'el-admin-feedback ' + (isOk ? 'el-admin-feedback--ok' : 'el-admin-feedback--err');
+    el.hidden = false;
+  }
+
+  function populateReconcileEpisodeSelects() {
+    const patSel = byId('el-admin-reconcile-patient');
+    const srcSel = byId('el-admin-reconcile-src-ep');
+    const tgtSel = byId('el-admin-reconcile-tgt-ep');
+    const offInp = byId('el-admin-reconcile-ercp-offset');
+    const runBtn = byId('el-btn-run-episode-reconcile');
+    if (!patSel || !srcSel || !tgtSel) return;
+
+    const puid = patSel.value || '';
+    const allPats = (state.adminPatients && Array.isArray(state.adminPatients.items)) ? state.adminPatients.items : [];
+    const foundPat = allPats.find((p) => p.patient_uid === puid) || null;
+    const inpEps = foundPat
+      ? (foundPat.episodes || []).filter((e) => e.care_setting === 'INPATIENT' && e.status === 'ACTIVE')
+      : [];
+
+    if (inpEps.length < 2) {
+      const emptyOpt = '<option value="">Không có đủ 2 đợt nội trú cần gộp</option>';
+      srcSel.innerHTML = emptyOpt;
+      tgtSel.innerHTML = emptyOpt;
+      srcSel.disabled = true;
+      tgtSel.disabled = true;
+      if (runBtn) runBtn.disabled = true;
+      return;
+    }
+
+    srcSel.disabled = false;
+    tgtSel.disabled = false;
+    if (runBtn) runBtn.disabled = false;
+
+    const optsHtml = inpEps.map((ep, idx) => {
+      const admTxt = ep.admission_date ? formatViDate(ep.admission_date) : 'Chưa rõ ngày';
+      const deptTxt = sanitizeEnumFallbackVi(ep.referring_dept || 'Nội trú', 'Nội trú');
+      const casesTxt = (ep.case_codes && ep.case_codes.length) ? ep.case_codes.join(', ') : '0 ca';
+      const lbl = 'Đợt #' + (idx + 1) + ' (' + admTxt + ' · ' + deptTxt + ' · ' + casesTxt + ')';
+      return '<option value="' + escapeHtml(ep.episode_id) + '">' + escapeHtml(lbl) + '</option>';
+    }).join('');
+
+    srcSel.innerHTML = optsHtml;
+    tgtSel.innerHTML = optsHtml;
+    srcSel.value = inpEps[inpEps.length - 1].episode_id;
+    tgtSel.value = inpEps[0].episode_id;
+    if (offInp) {
+      offInp.value = String(inpEps[0].prior_unrecorded_ercp_offset || 0);
+    }
+  }
+
+  function renderSuperadminPanel() {
+    const panelEl = byId('el-superadmin-panel');
+    if (!panelEl) return;
+    const isSuper = Boolean(state.user && state.user.role === 'superadmin');
+    const epochBadge = byId('el-superadmin-epoch-badge');
+    const noticeEl = byId('el-superadmin-readonly-notice');
+    const gridEl = byId('el-superadmin-grid');
+
+    const curStoreEpoch = Number(state.storeEpoch) || 1;
+    const dsEpoch = Number(state.settings && state.settings.export_dataset_epoch) || 1;
+    const linSeq = Number(state.settings && state.settings.profile_b_lineage_seq) || 1;
+
+    if (epochBadge) {
+      epochBadge.textContent = 'Kỷ nguyên kho #' + curStoreEpoch + ' · Hồ sơ B tập #' + dsEpoch + ' (chuỗi #' + linSeq + ')';
+    }
+    if (noticeEl) noticeEl.hidden = isSuper;
+    if (gridEl) gridEl.hidden = !isSuper;
+    if (!isSuper) return;
+
+    updateSwitchPill('el-sw-preserve-users', state.restorePreserveUsers);
+    updateSwitchPill('el-sw-merge-demo-confirm', state.mergeDemoConfirm);
+    updateSwitchPill('el-sw-merge-mrn-override', state.mergeMrnOverride);
+
+    /* 1. Danh sách người bệnh cho thẻ Gộp người bệnh & Đối soát đợt nội trú */
+    const patItems = (state.adminPatients && Array.isArray(state.adminPatients.items)) ? state.adminPatients.items : [];
+    const srcMergeSel = byId('el-admin-merge-source');
+    const tgtMergeSel = byId('el-admin-merge-target');
+    const mergeBtn = byId('el-btn-run-patient-merge');
+    if (srcMergeSel && tgtMergeSel) {
+      if (patItems.length < 2) {
+        const singleHtml = '<option value="">Chưa đủ 2 hồ sơ người bệnh hoạt động</option>';
+        srcMergeSel.innerHTML = singleHtml;
+        tgtMergeSel.innerHTML = singleHtml;
+        srcMergeSel.disabled = true;
+        tgtMergeSel.disabled = true;
+        if (mergeBtn) mergeBtn.disabled = true;
+      } else {
+        srcMergeSel.disabled = false;
+        tgtMergeSel.disabled = false;
+        if (mergeBtn) mergeBtn.disabled = false;
+        const prevSrc = srcMergeSel.value;
+        const prevTgt = tgtMergeSel.value;
+        const patOptsHtml = patItems.map((p) => {
+          const sexLbl = p.sex === 'F' ? 'Nữ' : (p.sex === 'O' ? 'Khác' : 'Nam');
+          const mrnLbl = p.hospital_mrn_masked ? (' · ' + p.hospital_mrn_masked) : ' · Ngoại trú chưa mã HS';
+          const casesLbl = (p.case_codes && p.case_codes.length) ? p.case_codes.join(', ') : '0 ca';
+          const label = (p.full_name || p.privacy_initials || 'Người bệnh') + ' (' + p.birth_year + ', ' + sexLbl + mrnLbl + ' · ' + casesLbl + ')';
+          return '<option value="' + escapeHtml(p.patient_uid) + '">' + escapeHtml(label) + '</option>';
+        }).join('');
+        srcMergeSel.innerHTML = patOptsHtml;
+        tgtMergeSel.innerHTML = patOptsHtml;
+        const dupGroups = (state.adminPatients && Array.isArray(state.adminPatients.duplicate_groups))
+          ? state.adminPatients.duplicate_groups
+          : [];
+        if (prevSrc && patItems.some((x) => x.patient_uid === prevSrc)) {
+          srcMergeSel.value = prevSrc;
+        } else if (dupGroups.length > 0 && dupGroups[0].patient_uids.length >= 2) {
+          srcMergeSel.value = dupGroups[0].patient_uids[1];
+        } else {
+          srcMergeSel.value = patItems[1].patient_uid;
+        }
+        if (prevTgt && patItems.some((x) => x.patient_uid === prevTgt) && prevTgt !== srcMergeSel.value) {
+          tgtMergeSel.value = prevTgt;
+        } else if (dupGroups.length > 0 && dupGroups[0].patient_uids.length >= 2) {
+          tgtMergeSel.value = dupGroups[0].patient_uids[0];
+        } else {
+          tgtMergeSel.value = patItems[0].patient_uid;
+        }
+      }
+    }
+
+    const recPatSel = byId('el-admin-reconcile-patient');
+    if (recPatSel) {
+      const multiInpPats = patItems.filter((p) => Number(p.inpatient_episode_count) >= 2);
+      if (!multiInpPats.length) {
+        recPatSel.innerHTML = '<option value="">Không có người bệnh nào mang ≥ 2 đợt nội trú tách rời</option>';
+        recPatSel.disabled = true;
+      } else {
+        const prevP = recPatSel.value;
+        recPatSel.disabled = false;
+        recPatSel.innerHTML = multiInpPats.map((p) => {
+          const lbl = (p.full_name || p.privacy_initials || 'Người bệnh') + ' · ' + p.inpatient_episode_count + ' đợt nội trú đang mở';
+          return '<option value="' + escapeHtml(p.patient_uid) + '">' + escapeHtml(lbl) + '</option>';
+        }).join('');
+        if (prevP && multiInpPats.some((x) => x.patient_uid === prevP)) {
+          recPatSel.value = prevP;
+        } else {
+          recPatSel.value = multiInpPats[0].patient_uid;
+        }
+      }
+      populateReconcileEpisodeSelects();
+    }
+
+    /* 2. Danh sách tài khoản hệ thống & chọn tài khoản đặt lại mật khẩu */
+    const userItems = (state.adminUsers && Array.isArray(state.adminUsers.items)) ? state.adminUsers.items : [];
+    const userListEl = byId('el-admin-user-list');
+    const resetTargetSel = byId('el-admin-reset-target');
+    if (userListEl) {
+      userListEl.innerHTML = userItems.map((u) => {
+        const roleVi = u.role === 'superadmin' ? 'Quản trị viên cao cấp (Superadmin)' : 'Bác sĩ nội soi lâm sàng';
+        const statusTone = u.active ? 'ned' : 'urgent';
+        const statusLbl = u.active ? ('Đang hoạt động · Khóa v' + (u.auth_version || 1)) : 'Tạm khóa';
+        return (
+          '<div class="el-admin-item">' +
+          '<div class="el-admin-item-top">' +
+          '<span class="el-admin-item-title">' + escapeHtml(u.display_name || u.username) + ' (' + escapeHtml(u.username) + ')</span>' +
+          renderStatusBadge(statusTone, statusLbl) +
+          '</div>' +
+          '<p class="el-admin-item-sub">' + escapeHtml(roleVi) + ' · ' + escapeHtml(u.department || '') + '</p>' +
+          '</div>'
+        );
+      }).join('');
+    }
+    if (resetTargetSel && userItems.length) {
+      const prevUser = resetTargetSel.value;
+      resetTargetSel.innerHTML = userItems.map((u) => (
+        '<option value="' + escapeHtml(u.username) + '">' + escapeHtml((u.display_name || u.username) + ' (' + u.username + ')') + '</option>'
+      )).join('');
+      const nonSelf = userItems.find((u) => state.user && u.username !== state.user.username);
+      if (prevUser && userItems.some((u) => u.username === prevUser)) {
+        resetTargetSel.value = prevUser;
+      } else if (nonSelf) {
+        resetTargetSel.value = nonSelf.username;
+      }
+    }
+
+    /* 3. Cầu nối kiểm toán khôi phục & dòng dõi Hồ sơ B (0 mã UPPER_SNAKE_CASE) */
+    const lineageEl = byId('el-admin-lineage-list');
+    if (lineageEl) {
+      const bridges = (state.auditStatus && Array.isArray(state.auditStatus.audit_lineage_bridges))
+        ? state.auditStatus.audit_lineage_bridges
+        : [];
+      const linVer = (state.auditStatus && state.auditStatus.lineage_verification) || { valid: true, bridge_count: 0 };
+      const supCount = (state.adminPatients && Number(state.adminPatients.superseded_count)) || 0;
+
+      const summaryCardHtml = (
+        '<div class="el-admin-item">' +
+        '<div class="el-admin-item-top">' +
+        '<span class="el-admin-item-title">Trạng thái dòng dõi kho dữ liệu &amp; tập nghiên cứu</span>' +
+        renderStatusBadge(linVer.valid ? 'ned' : 'urgent', linVer.valid ? 'Cầu nối toàn vẹn' : 'Cảnh báo cầu nối') +
+        '</div>' +
+        '<p class="el-admin-item-sub">Kỷ nguyên kho hiện hành: #' + curStoreEpoch +
+        ' · Tập khóa Hồ sơ B: #' + dsEpoch +
+        ' · Chuỗi đối chiếu gộp Hồ sơ B: #' + linSeq +
+        ' · Hồ sơ người bệnh đã gộp lưu vết: ' + supCount + '</p>' +
+        '</div>'
+      );
+
+      if (!bridges.length) {
+        lineageEl.innerHTML = summaryCardHtml + (
+          '<div class="el-admin-item">' +
+          '<p class="el-admin-item-sub">Chưa phát sinh giao dịch khôi phục kho sao lưu — chuỗi kiểm toán SHA-256 liên tục từ lúc khởi tạo.</p>' +
+          '</div>'
+        );
+      } else {
+        const policyMapVi = {
+          REJECT: 'Giữ nguyên bộ khóa băm máy chủ',
+          REKEY_AND_BUMP_DATASET_EPOCH: 'Tái băm sang khóa máy chủ mới & nâng kỷ nguyên Hồ sơ B'
+        };
+        const bridgeCards = bridges.slice().reverse().map((b, idx) => {
+          const ok = Boolean(b.valid);
+          const preHeadShort = String(b.displaced_live_head_hash || '').slice(0, 10).toLowerCase();
+          const postHeadShort = String(b.backup_pre_append_head_hash || '').slice(0, 10).toLowerCase();
+          const snapShaShort = String(b.pre_restore_sha256 || '').slice(0, 12).toLowerCase();
+          const prevEp = b.previous_store_epoch != null ? b.previous_store_epoch : 1;
+          const newEp = b.new_store_epoch != null ? b.new_store_epoch : curStoreEpoch;
+          const polLabel = policyMapVi[b.key_mismatch_policy] || 'Đối chiếu khóa băm chuẩn';
+          return (
+            '<div class="el-admin-item">' +
+            '<div class="el-admin-item-top">' +
+            '<span class="el-admin-item-title">Cầu nối khôi phục #' + (bridges.length - idx) + ' · Kỷ nguyên #' + escapeHtml(prevEp) + ' sang #' + escapeHtml(newEp) + '</span>' +
+            renderStatusBadge(ok ? 'ned' : 'urgent', ok ? 'Ảnh chụp trước khôi phục khớp SHA-256' : 'Không khớp ảnh chụp dự phòng') +
+            '</div>' +
+            '<p class="el-admin-item-sub">Thời điểm: ' + escapeHtml(formatViDateTime(b.restored_at_utc)) +
+            ' · Chính sách khóa: ' + escapeHtml(polLabel) +
+            ' · Mã băm ảnh chụp dự phòng: <span class="el-audit-hash">' + escapeHtml(snapShaShort) + '</span>' +
+            ' · Đầu chuỗi kiểm toán: <span class="el-audit-hash">' + escapeHtml(preHeadShort) + '</span> sang <span class="el-audit-hash">' + escapeHtml(postHeadShort) + '</span></p>' +
+            '</div>'
+          );
+        }).join('');
+        lineageEl.innerHTML = summaryCardHtml + bridgeCards;
+      }
+    }
   }
 
   function switchView(viewName, skipPersist) {
@@ -1246,6 +1515,8 @@
   function setLoginControlsDisabled(disabled) {
     const bypassBtn = byId('el-btn-dev-bypass');
     if (bypassBtn) bypassBtn.disabled = Boolean(disabled);
+    const bypassAdminBtn = byId('el-btn-dev-bypass-admin');
+    if (bypassAdminBtn) bypassAdminBtn.disabled = Boolean(disabled);
     document.querySelectorAll('#el-login-form button').forEach((btn) => {
       btn.disabled = Boolean(disabled);
     });
@@ -1368,6 +1639,11 @@
       { code: 'DEFAULT_90', label: 'Mục tiêu chung ≥ 90% (p0 = 0,10)' },
       { code: 'SCREENING_CIR_95', label: 'Tầm soát ≥ 95% (p0 = 0,05)' }
     ], 'DEFAULT_90');
+
+    populateSelectOptions('el-admin-key-policy', [
+      { code: 'REJECT', label: 'Từ chối nếu khác khóa băm bệnh viện (an toàn mặc định)' },
+      { code: 'REKEY_AND_BUMP_DATASET_EPOCH', label: 'Tái băm sang khóa máy chủ mới & nâng kỷ nguyên Hồ sơ B' }
+    ], 'REJECT');
 
     populateIndicationOptionsForTrack('COL', 'SCREENING');
 
@@ -1564,14 +1840,27 @@
     const gEl = byId('el-setting-guideline');
     const nEl = byId('el-setting-n-min');
     const cEl = byId('el-setting-cusum-preset');
+    const hintEl = byId('el-settings-role-hint');
+    const isSuper = Boolean(state.user && state.user.role === 'superadmin');
     if (gEl && state.settings && state.settings.colo_guideline_mode) {
       gEl.value = state.settings.colo_guideline_mode;
     }
-    if (nEl && state.settings && typeof state.settings.kpi_min_sample_size === 'number') {
-      nEl.value = String(state.settings.kpi_min_sample_size);
+    if (nEl) {
+      if (state.settings && typeof state.settings.kpi_min_sample_size === 'number') {
+        nEl.value = String(state.settings.kpi_min_sample_size);
+      }
+      nEl.disabled = !isSuper;
     }
-    if (cEl && state.settings && state.settings.cusum_preset) {
-      cEl.value = state.settings.cusum_preset;
+    if (cEl) {
+      if (state.settings && state.settings.cusum_preset) {
+        cEl.value = state.settings.cusum_preset;
+      }
+      cEl.disabled = !isSuper;
+    }
+    if (hintEl) {
+      hintEl.textContent = isSuper
+        ? 'Đang mở toàn quyền Superadmin: có thể hiệu chỉnh hướng dẫn hậu cắt polyp, cỡ mẫu tối thiểu cá nhân và mục tiêu đường cong kiểm soát chất lượng'
+        : 'Bác sĩ nội soi được chọn hướng dẫn hậu cắt polyp mặc định; cỡ mẫu tối thiểu và mục tiêu đường cong kiểm soát do Superadmin quản trị';
     }
   }
 
@@ -1623,7 +1912,7 @@
   }
 
   function getActiveTopmostModalContainer() {
-    const subIds = ['el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop', 'el-detail-modal-backdrop'];
+    const subIds = ['el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop', 'el-detail-modal-backdrop', 'el-password-modal-backdrop'];
     for (let i = 0; i < subIds.length; i += 1) {
       const wrap = byId(subIds[i]);
       if (wrap && !wrap.hidden) {
@@ -1645,12 +1934,14 @@
     const dupWrap = byId('el-dup-modal-backdrop');
     const vaultWrap = byId('el-vault-modal-backdrop');
     const detailWrap = byId('el-detail-modal-backdrop');
+    const pwdWrap = byId('el-password-modal-backdrop');
 
     const anySubOpen = Boolean(
       (dirtyWrap && !dirtyWrap.hidden) ||
       (dupWrap && !dupWrap.hidden) ||
       (vaultWrap && !vaultWrap.hidden) ||
-      (detailWrap && !detailWrap.hidden)
+      (detailWrap && !detailWrap.hidden) ||
+      (pwdWrap && !pwdWrap.hidden)
     );
     const drawerOpen = Boolean(drawerWrap && !drawerWrap.hidden);
     const anyModalOpen = anySubOpen || drawerOpen;
@@ -1705,6 +1996,11 @@
       const detailWrap = byId('el-detail-modal-backdrop');
       if (detailWrap && !detailWrap.hidden) {
         closeCaseDetailModal(false);
+        return;
+      }
+      const pwdWrap = byId('el-password-modal-backdrop');
+      if (pwdWrap && !pwdWrap.hidden) {
+        closePasswordModal(false);
         return;
       }
       requestCloseDrawer();
@@ -2085,6 +2381,7 @@
     drawerState.editingCaseId = null;
     drawerState.editingCaseCode = '';
     drawerState.expectedVersion = 1;
+    drawerState.expectedStoreEpoch = Number(state.storeEpoch) || 1;
     drawerState.track = tr;
     drawerState.sex = 'M';
     drawerState.careSetting = tr === 'ERCP' ? 'INPATIENT' : 'OUTPATIENT';
@@ -2200,6 +2497,7 @@
     drawerState.editingCaseId = c.case_id;
     drawerState.editingCaseCode = c.case_code || '';
     drawerState.expectedVersion = Number(c.version) || 1;
+    drawerState.expectedStoreEpoch = Number(c.store_epoch) || Number(state.storeEpoch) || 1;
     drawerState.track = c.track || 'COL';
     drawerState.careSetting = c.care_setting || 'OUTPATIENT';
     drawerState.sex = (c.patient && c.patient.sex) || 'M';
@@ -2671,17 +2969,69 @@
     }
   }
 
+  function openPasswordModal(triggerEl) {
+    if (!state.user) return;
+    const wrap = byId('el-password-modal-backdrop');
+    if (!wrap) return;
+    closeAllCardActionMenus();
+    passwordModalState.isOpen = true;
+    passwordModalState.returnFocusEl = triggerEl || document.activeElement || null;
+    ['el-pwd-current', 'el-pwd-new', 'el-pwd-confirm'].forEach((id) => {
+      const inp = byId(id);
+      if (inp) inp.value = '';
+    });
+    const fb = byId('el-pwd-feedback');
+    if (fb) {
+      fb.textContent = '';
+      fb.className = 'el-error-banner';
+      fb.hidden = true;
+    }
+    wrap.hidden = false;
+    syncModalInertAndFocusTrap();
+    const curInp = byId('el-pwd-current');
+    if (curInp && typeof curInp.focus === 'function') curInp.focus();
+  }
+
+  function closePasswordModal(skipRestoreFocus) {
+    const wrap = byId('el-password-modal-backdrop');
+    if (wrap) wrap.hidden = true;
+    passwordModalState.isOpen = false;
+    ['el-pwd-current', 'el-pwd-new', 'el-pwd-confirm'].forEach((id) => {
+      const inp = byId(id);
+      if (inp) inp.value = '';
+    });
+    const fb = byId('el-pwd-feedback');
+    if (fb) {
+      fb.textContent = '';
+      fb.className = 'el-error-banner';
+      fb.hidden = true;
+    }
+    syncModalInertAndFocusTrap();
+    const ret = passwordModalState.returnFocusEl;
+    passwordModalState.returnFocusEl = null;
+    if (!skipRestoreFocus && ret && typeof ret.focus === 'function' && state.user) {
+      try {
+        ret.focus();
+      } catch (_err) {
+        /* ignore */
+      }
+    }
+  }
+
   function forceWipeAllModalsAndForms() {
     stopWithdrawalStopwatch();
     closeAllCardActionMenus();
     detailModalState.isOpen = false;
     detailModalState.caseId = null;
     detailModalState.returnFocusEl = null;
+    passwordModalState.isOpen = false;
+    passwordModalState.returnFocusEl = null;
     drawerState.isOpen = false;
     drawerState.mode = 'create';
     drawerState.editingCaseId = null;
     drawerState.editingCaseCode = '';
     drawerState.expectedVersion = 1;
+    drawerState.expectedStoreEpoch = 1;
     drawerState.isDirty = false;
     drawerState.pendingCreatePayload = null;
     drawerState.returnFocusEl = null;
@@ -2693,6 +3043,11 @@
     drawerState.fulfillSurvRecId = null;
     drawerState.linkedOriginCaseCode = '';
 
+    state.restoreVaultText = '';
+    state.restorePreserveUsers = true;
+    state.mergeDemoConfirm = false;
+    state.mergeMrnOverride = false;
+
     const formEl = byId('el-case-form');
     if (formEl && typeof formEl.reset === 'function') {
       formEl.reset();
@@ -2701,13 +3056,33 @@
     [
       'el-f-full-name', 'el-f-birth-year', 'el-f-hospital-mrn', 'el-f-indication-detail',
       'el-f-lesion-site', 'el-f-surface-pattern', 'el-f-ercp-note', 'el-f-clinical-note',
-      'el-f-clin-fu-note', 'el-f-confirm-delete-code', 'el-vault-passphrase'
+      'el-f-clin-fu-note', 'el-f-confirm-delete-code', 'el-vault-passphrase',
+      'el-pwd-current', 'el-pwd-new', 'el-pwd-confirm',
+      'el-admin-restore-file', 'el-admin-restore-passphrase',
+      'el-admin-merge-reason', 'el-admin-reconcile-reason', 'el-admin-reset-password'
     ].forEach((id) => {
       const inp = byId(id);
       if (inp) inp.value = '';
     });
 
-    ['el-ae-list', 'el-dup-candidates', 'el-patient-readonly-box', 'el-detail-modal-badges', 'el-detail-modal-body'].forEach((id) => {
+    const fnLbl = byId('el-admin-restore-filename');
+    if (fnLbl) fnLbl.textContent = 'Chưa chọn tệp sao lưu';
+
+    const keyPolSel = byId('el-admin-key-policy');
+    if (keyPolSel) keyPolSel.value = 'REJECT';
+    const recOffInp = byId('el-admin-reconcile-ercp-offset');
+    if (recOffInp) recOffInp.value = '0';
+    const epochBadgeEl = byId('el-superadmin-epoch-badge');
+    if (epochBadgeEl) epochBadgeEl.textContent = 'Kỷ nguyên kho #1';
+    updateSwitchPill('el-sw-preserve-users', true);
+    updateSwitchPill('el-sw-merge-demo-confirm', false);
+    updateSwitchPill('el-sw-merge-mrn-override', false);
+
+    [
+      'el-ae-list', 'el-dup-candidates', 'el-patient-readonly-box', 'el-detail-modal-badges', 'el-detail-modal-body',
+      'el-admin-user-list', 'el-admin-lineage-list', 'el-admin-merge-source', 'el-admin-merge-target',
+      'el-admin-reconcile-patient', 'el-admin-reconcile-src-ep', 'el-admin-reconcile-tgt-ep', 'el-admin-reset-target'
+    ].forEach((id) => {
       const node = byId(id);
       if (node) {
         if (typeof node.replaceChildren === 'function') {
@@ -2722,14 +3097,23 @@
       const node = byId(id);
       if (node) node.textContent = '';
     });
+    ['el-admin-restore-feedback', 'el-admin-merge-feedback', 'el-admin-reconcile-feedback', 'el-admin-user-feedback', 'el-pwd-feedback'].forEach((id) => {
+      const fb = byId(id);
+      if (fb) {
+        fb.textContent = '';
+        fb.hidden = true;
+      }
+    });
     const dTitle = byId('el-detail-modal-title');
     if (dTitle) dTitle.textContent = 'Hồ sơ diễn tiến 4 pha';
 
     setDrawerAlert('');
-    ['el-case-drawer-backdrop', 'el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop', 'el-detail-modal-backdrop'].forEach((id) => {
+    ['el-case-drawer-backdrop', 'el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop', 'el-detail-modal-backdrop', 'el-password-modal-backdrop', 'el-superadmin-grid'].forEach((id) => {
       const el = byId(id);
       if (el) el.hidden = true;
     });
+    const adminNotice = byId('el-superadmin-readonly-notice');
+    if (adminNotice) adminNotice.hidden = false;
     syncModalInertAndFocusTrap();
   }
 
@@ -3020,10 +3404,11 @@
       return;
     }
 
-    /* Chế độ cập nhật hồ sơ ca soi hiện có (OCC ETag + expected_version) */
+    /* Chế độ cập nhật hồ sơ ca soi hiện có (OCC ETag W/"e{store_epoch}:v{version}" + expected_store_epoch + expected_version) */
     const reqEpoch = sessionEpoch;
     const patchPayload = {
       expected_version: drawerState.expectedVersion,
+      expected_store_epoch: drawerState.expectedStoreEpoch,
       procedure_start_at: procIso,
       indication: (byId('el-f-indication') && byId('el-f-indication').value) || TRACK_DEFAULT_INDICATION[tr],
       indication_detail: (byId('el-f-indication-detail') && byId('el-f-indication-detail').value.trim()) || '',
@@ -3051,7 +3436,7 @@
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'If-Match': 'W/"v' + drawerState.expectedVersion + '"'
+          'If-Match': 'W/"e' + drawerState.expectedStoreEpoch + ':v' + drawerState.expectedVersion + '"'
         },
         body: JSON.stringify(patchPayload)
       }, reqEpoch);
@@ -3067,8 +3452,15 @@
 
       const errBody = await resp.json().catch(() => null);
       if (resp.status === 409) {
+        const errCode = errBody && errBody.detail && errBody.detail.code;
         setDrawerSyncBadge('Lỗi xung đột phiên bản (OCC)', 'urgent');
-        setDrawerAlert('Xung đột phiên bản dữ liệu (HTTP 409): Hồ sơ đã được cập nhật ở phiên khác. Vui lòng đóng ngăn kéo và mở lại để tải bản mới nhất trước khi lưu.');
+        if (errCode === 'OCC_STORE_EPOCH_MISMATCH') {
+          setDrawerAlert('Xung đột kỷ nguyên kho dữ liệu (HTTP 409): Kho sổ bộ vừa được khôi phục sang thế hệ mới. Vui lòng đóng biểu mẫu và tải lại danh sách mới nhất.');
+        } else if (errCode === 'PATIENT_MERGED_SUPERSEDED' || errCode === 'EPISODE_SUPERSEDED') {
+          setDrawerAlert('Hồ sơ người bệnh hoặc đợt điều trị vừa được hợp nhất (HTTP 409). Vui lòng đóng biểu mẫu và mở lại từ danh sách mới.');
+        } else {
+          setDrawerAlert('Xung đột phiên bản dữ liệu (HTTP 409): Hồ sơ đã được cập nhật ở phiên khác. Vui lòng đóng ngăn kéo và mở lại để tải bản mới nhất trước khi lưu.');
+        }
         return;
       }
       setDrawerSyncBadge('Cần kiểm tra dữ liệu', 'urgent');
@@ -3146,6 +3538,7 @@
     forceWipeAllModalsAndForms();
 
     state.user = null;
+    state.storeEpoch = 1;
     state.activeView = 'cases';
     state.trackFilter = 'ALL';
     state.survFilter = 'ALL';
@@ -3157,13 +3550,18 @@
       colo_guideline_mode: 'USMSTF_2020',
       adr_min_age: 45,
       cusum_preset: 'DEFAULT_90',
-      kpi_min_sample_size: 20
+      kpi_min_sample_size: 20,
+      export_dataset_epoch: 1,
+      profile_b_lineage_seq: 1
     };
     state.cases = [];
     state.surveillanceRows = [];
     state.kpiBundle = null;
     state.cusumData = null;
     state.auditStatus = null;
+    state.adminPatients = null;
+    state.adminUsers = null;
+    state.restoreVaultText = '';
 
     try {
       window.sessionStorage.clear();
@@ -3187,6 +3585,11 @@
       const node = byId(id);
       if (node) node.textContent = '';
     });
+
+    const adminGridEl = byId('el-superadmin-grid');
+    if (adminGridEl) adminGridEl.hidden = true;
+    const adminNoticeEl = byId('el-superadmin-readonly-notice');
+    if (adminNoticeEl) adminNoticeEl.hidden = false;
 
     const searchInput = byId('el-case-search');
     if (searchInput) searchInput.value = '';
@@ -3318,32 +3721,43 @@
   async function loadAllClinicalViews(expectedEpoch) {
     const reqEpoch = expectedEpoch != null ? expectedEpoch : sessionEpoch;
     try {
-      const [casesResp, survResp, kpiResp, auditResp] = await Promise.all([
+      const isSuper = Boolean(state.user && state.user.role === 'superadmin');
+      const fetchPromises = [
         apiFetch('/api/cases', null, reqEpoch),
         apiFetch('/api/surveillance', null, reqEpoch),
         apiFetch('/api/metrics/kpi?min_adr_age=' + encodeURIComponent(state.adrMinAge), null, reqEpoch),
         apiFetch('/api/audit/verify', null, reqEpoch)
-      ]);
-      const [casesJson, survJson, kpiJson, auditJson] = await Promise.all([
-        casesResp.json(),
-        survResp.json(),
-        kpiResp.json(),
-        auditResp.json()
-      ]);
+      ];
+      if (isSuper) {
+        fetchPromises.push(apiFetch('/api/admin/patients', null, reqEpoch));
+        fetchPromises.push(apiFetch('/api/admin/users', null, reqEpoch));
+      }
+      const resps = await Promise.all(fetchPromises);
+      const jsons = await Promise.all(resps.map((r) => r.json()));
       if (!isSessionActiveForEpoch(reqEpoch)) return;
 
+      const casesJson = jsons[0];
+      const survJson = jsons[1];
+      const kpiJson = jsons[2];
+      const auditJson = jsons[3];
+
+      state.storeEpoch = Number(casesJson.store_epoch) || Number(auditJson.store_epoch) || 1;
       state.cases = casesJson.items || [];
       state.settings = Object.assign({
         colo_guideline_mode: 'USMSTF_2020',
         adr_min_age: 45,
         cusum_preset: 'DEFAULT_90',
-        kpi_min_sample_size: 20
+        kpi_min_sample_size: 20,
+        export_dataset_epoch: 1,
+        profile_b_lineage_seq: 1
       }, casesJson.settings || {});
       state.cusumPreset = state.settings.cusum_preset || 'DEFAULT_90';
       state.surveillanceRows = survJson.items || [];
       state.kpiBundle = kpiJson;
       state.cusumData = null;
       state.auditStatus = auditJson;
+      state.adminPatients = isSuper ? (jsons[4] || null) : null;
+      state.adminUsers = isSuper ? (jsons[5] || null) : null;
 
       renderCasesView();
       renderSurveillanceView();
@@ -3354,10 +3768,11 @@
     }
   }
 
-  function enterAuthenticatedShell(userObj, ttlSeconds) {
+  function enterAuthenticatedShell(userObj, ttlSeconds, storeEpoch) {
     const newEpoch = bumpSessionEpoch(true);
     clearSessionTimers();
 
+    state.storeEpoch = Number(storeEpoch) || 1;
     state.trackFilter = 'ALL';
     state.survFilter = 'ALL';
     state.searchQuery = '';
@@ -3369,6 +3784,8 @@
     state.kpiBundle = null;
     state.cusumData = null;
     state.auditStatus = null;
+    state.adminPatients = null;
+    state.adminUsers = null;
 
     const searchInput = byId('el-case-search');
     if (searchInput) searchInput.value = '';
@@ -3413,6 +3830,10 @@
       if (bypassBtn) {
         bypassBtn.hidden = !health.local_bypass_candidate;
       }
+      const bypassAdminBtn = byId('el-btn-dev-bypass-admin');
+      if (bypassAdminBtn) {
+        bypassAdminBtn.hidden = !health.local_bypass_candidate;
+      }
 
       if (!forceLoginScreen) {
         const meResp = await fetch('/api/auth/me', { credentials: 'same-origin' });
@@ -3422,7 +3843,7 @@
             await performLogout('Phiên xác thực 15 phút đã hết hạn. Đã xóa dữ liệu ca bệnh trên màn hình.');
             return;
           }
-          const ep = enterAuthenticatedShell(meData.user, meData.remaining_seconds);
+          const ep = enterAuthenticatedShell(meData.user, meData.remaining_seconds, meData.store_epoch);
           await loadAllClinicalViews(ep);
           return;
         }
@@ -3435,7 +3856,7 @@
           });
           if (bpResp.ok) {
             const bpData = await bpResp.json();
-            const ep = enterAuthenticatedShell(bpData.user, bpData.expires_in_seconds);
+            const ep = enterAuthenticatedShell(bpData.user, bpData.expires_in_seconds, bpData.store_epoch);
             await loadAllClinicalViews(ep);
             return;
           }
@@ -3655,14 +4076,17 @@
         const nEl = byId('el-setting-n-min');
         const cEl = byId('el-setting-cusum-preset');
         const fbEl = byId('el-settings-feedback');
-        const rawN = nEl ? parseInt(nEl.value, 10) : 20;
-        const clampedN = Math.max(1, Math.min(500, Number.isFinite(rawN) ? rawN : 20));
-        if (nEl) nEl.value = String(clampedN);
+        const isSuper = state.user.role === 'superadmin';
         const body = {
-          colo_guideline_mode: (gEl && gEl.value) || 'USMSTF_2020',
-          kpi_min_sample_size: clampedN,
-          cusum_preset: (cEl && cEl.value) || 'DEFAULT_90'
+          colo_guideline_mode: (gEl && gEl.value) || 'USMSTF_2020'
         };
+        if (isSuper) {
+          const rawN = nEl ? parseInt(nEl.value, 10) : 20;
+          const clampedN = Math.max(1, Math.min(500, Number.isFinite(rawN) ? rawN : 20));
+          if (nEl) nEl.value = String(clampedN);
+          body.kpi_min_sample_size = clampedN;
+          body.cusum_preset = (cEl && cEl.value) || 'DEFAULT_90';
+        }
         try {
           const resp = await apiFetch('/api/settings', {
             method: 'PATCH',
@@ -3672,11 +4096,433 @@
           if (resp.ok) {
             await loadAllClinicalViews(reqEpoch);
             if (fbEl && isSessionActiveForEpoch(reqEpoch)) {
-              fbEl.textContent = 'Đã lưu cấu hình chuyên môn';
+              fbEl.textContent = isSuper ? 'Đã lưu cấu hình chuyên môn & thống kê' : 'Đã lưu cấu hình hướng dẫn chuyên môn cá nhân';
             }
           }
         } catch (err) {
           if (isExpectedSessionTerminationError(err)) return;
+        }
+      });
+    }
+
+    /* ======================================================================
+     * PHASE 4C (v0.3.0): HỘP THOẠI ĐỔI MẬT KHẨU & BẢNG QUẢN TRỊ SUPERADMIN
+     * ====================================================================== */
+    const chgPwdBtn = byId('el-btn-change-password');
+    if (chgPwdBtn) {
+      chgPwdBtn.addEventListener('click', () => {
+        if (!state.user) return;
+        openPasswordModal(chgPwdBtn);
+      });
+    }
+
+    const pwdCloseBtn = byId('el-btn-pwd-close');
+    if (pwdCloseBtn) {
+      pwdCloseBtn.addEventListener('click', () => {
+        closePasswordModal(false);
+      });
+    }
+
+    const pwdBackdrop = byId('el-password-modal-backdrop');
+    if (pwdBackdrop) {
+      pwdBackdrop.addEventListener('click', (ev) => {
+        if (ev.target === pwdBackdrop) {
+          closePasswordModal(false);
+        }
+      });
+    }
+
+    const pwdSubmitBtn = byId('el-btn-pwd-submit');
+    if (pwdSubmitBtn) {
+      pwdSubmitBtn.addEventListener('click', async () => {
+        if (!state.user) return;
+        const reqEpoch = sessionEpoch;
+        const curEl = byId('el-pwd-current');
+        const newEl = byId('el-pwd-new');
+        const cfmEl = byId('el-pwd-confirm');
+        const fbEl = byId('el-pwd-feedback');
+        const showPwdErr = (msg) => {
+          if (!fbEl) return;
+          fbEl.textContent = msg;
+          fbEl.className = 'el-error-banner';
+          fbEl.hidden = false;
+        };
+
+        const currentPassword = curEl ? curEl.value : '';
+        const newPassword = newEl ? newEl.value : '';
+        const confirmPassword = cfmEl ? cfmEl.value : '';
+        if (!currentPassword) {
+          showPwdErr('Vui lòng nhập mật khẩu đang sử dụng.');
+          return;
+        }
+        if (newPassword.length < 12) {
+          showPwdErr('Mật khẩu mới bắt buộc có tối thiểu 12 ký tự.');
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          showPwdErr('Mật khẩu xác nhận không khớp với mật khẩu mới.');
+          return;
+        }
+        if (newPassword === currentPassword) {
+          showPwdErr('Mật khẩu mới phải khác mật khẩu hiện tại.');
+          return;
+        }
+
+        try {
+          const resp = await apiFetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              current_password: currentPassword,
+              new_password: newPassword
+            })
+          }, reqEpoch);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (!isSessionActiveForEpoch(reqEpoch)) return;
+            state.user = data.user || state.user;
+            state.storeEpoch = Number(data.store_epoch) || state.storeEpoch;
+            armHardSessionTimer((Number(data.expires_in_seconds) || 900) * 1000);
+            closePasswordModal(false);
+            await loadAllClinicalViews(reqEpoch);
+            return;
+          }
+          const errBody = await resp.json().catch(() => null);
+          showPwdErr(extractApiErrorMessageVi(errBody, resp.status));
+        } catch (err) {
+          if (isExpectedSessionTerminationError(err)) return;
+          showPwdErr('Không thể cập nhật mật khẩu do lỗi kết nối máy chủ.');
+        }
+      });
+    }
+
+    const pickRestoreBtn = byId('el-btn-pick-restore-file');
+    const restoreFileInp = byId('el-admin-restore-file');
+    if (pickRestoreBtn && restoreFileInp) {
+      pickRestoreBtn.addEventListener('click', () => {
+        if (!state.user || state.user.role !== 'superadmin') return;
+        restoreFileInp.click();
+      });
+
+      restoreFileInp.addEventListener('change', async () => {
+        const fnEl = byId('el-admin-restore-filename');
+        setAdminFeedback('el-admin-restore-feedback', '', false);
+        const file = restoreFileInp.files && restoreFileInp.files[0];
+        if (!file) {
+          state.restoreVaultText = '';
+          if (fnEl) fnEl.textContent = 'Chưa chọn tệp sao lưu';
+          return;
+        }
+        if (file.size > 10485760) {
+          state.restoreVaultText = '';
+          restoreFileInp.value = '';
+          if (fnEl) fnEl.textContent = 'Chưa chọn tệp sao lưu';
+          setAdminFeedback('el-admin-restore-feedback', 'Tệp sao lưu vượt giới hạn an toàn 10 MiB của Hồ sơ A.', false);
+          return;
+        }
+        try {
+          const text = typeof file.text === 'function'
+            ? await file.text()
+            : await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result || ''));
+              reader.onerror = () => reject(new Error('READ_FAIL'));
+              reader.readAsText(file, 'utf-8');
+            });
+          state.restoreVaultText = String(text || '');
+          if (fnEl) fnEl.textContent = file.name + ' (' + Math.max(1, Math.round(file.size / 1024)) + ' KiB)';
+        } catch (_err) {
+          state.restoreVaultText = '';
+          setAdminFeedback('el-admin-restore-feedback', 'Không thể đọc nội dung tệp sao lưu trên trình duyệt.', false);
+        }
+      });
+    }
+
+    const preserveUsersSw = byId('el-sw-preserve-users');
+    if (preserveUsersSw) {
+      preserveUsersSw.addEventListener('click', () => {
+        state.restorePreserveUsers = !state.restorePreserveUsers;
+        updateSwitchPill('el-sw-preserve-users', state.restorePreserveUsers);
+      });
+    }
+
+    const runRestoreBtn = byId('el-btn-run-restore');
+    if (runRestoreBtn) {
+      runRestoreBtn.addEventListener('click', async () => {
+        if (!state.user || state.user.role !== 'superadmin') return;
+        const reqEpoch = sessionEpoch;
+        setAdminFeedback('el-admin-restore-feedback', '', false);
+        const passEl = byId('el-admin-restore-passphrase');
+        const polEl = byId('el-admin-key-policy');
+        const passphrase = passEl ? passEl.value : '';
+        if (!state.restoreVaultText) {
+          setAdminFeedback('el-admin-restore-feedback', 'Vui lòng chọn tệp sao lưu mã hóa (.endolog.enc) trước khi khôi phục.', false);
+          return;
+        }
+        if (passphrase.length < 12) {
+          setAdminFeedback('el-admin-restore-feedback', 'Khóa mật khẩu giải mã tệp sao lưu phải có tối thiểu 12 ký tự.', false);
+          return;
+        }
+        try {
+          const resp = await apiFetch('/api/admin/restore-profile-a', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vault_text: state.restoreVaultText,
+              passphrase,
+              expected_store_epoch: state.storeEpoch,
+              preserve_current_users: Boolean(state.restorePreserveUsers),
+              key_mismatch_policy: (polEl && polEl.value) || 'REJECT'
+            })
+          }, reqEpoch);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (!isSessionActiveForEpoch(reqEpoch)) return;
+            if (data.reauthentication_required) {
+              wipeClinicalDomAndShowLogin('Đã khôi phục kho sao lưu nguyên tử kèm bảng tài khoản trong bản sao lưu. Vui lòng đăng nhập lại.');
+              return;
+            }
+            state.storeEpoch = Number(data.new_store_epoch) || (state.storeEpoch + 1);
+            state.restoreVaultText = '';
+            if (passEl) passEl.value = '';
+            if (restoreFileInp) restoreFileInp.value = '';
+            const fnEl = byId('el-admin-restore-filename');
+            if (fnEl) fnEl.textContent = 'Chưa chọn tệp sao lưu';
+            armHardSessionTimer((Number(data.expires_in_seconds) || 900) * 1000);
+            await loadAllClinicalViews(reqEpoch);
+            if (isSessionActiveForEpoch(reqEpoch)) {
+              setAdminFeedback(
+                'el-admin-restore-feedback',
+                'Đã khôi phục nguyên tử sang kỷ nguyên kho #' + state.storeEpoch + ' và lưu ảnh chụp dự phòng khớp SHA-256.',
+                true
+              );
+            }
+            return;
+          }
+          const errBody = await resp.json().catch(() => null);
+          setAdminFeedback('el-admin-restore-feedback', extractApiErrorMessageVi(errBody, resp.status), false);
+        } catch (err) {
+          if (isExpectedSessionTerminationError(err)) return;
+          setAdminFeedback('el-admin-restore-feedback', 'Không thể thực hiện khôi phục kho sao lưu do lỗi kết nối máy chủ.', false);
+        }
+      });
+    }
+
+    const mergeDemoSw = byId('el-sw-merge-demo-confirm');
+    if (mergeDemoSw) {
+      mergeDemoSw.addEventListener('click', () => {
+        state.mergeDemoConfirm = !state.mergeDemoConfirm;
+        updateSwitchPill('el-sw-merge-demo-confirm', state.mergeDemoConfirm);
+      });
+    }
+
+    const mergeMrnSw = byId('el-sw-merge-mrn-override');
+    if (mergeMrnSw) {
+      mergeMrnSw.addEventListener('click', () => {
+        state.mergeMrnOverride = !state.mergeMrnOverride;
+        updateSwitchPill('el-sw-merge-mrn-override', state.mergeMrnOverride);
+      });
+    }
+
+    const runMergeBtn = byId('el-btn-run-patient-merge');
+    if (runMergeBtn) {
+      runMergeBtn.addEventListener('click', async () => {
+        if (!state.user || state.user.role !== 'superadmin') return;
+        const reqEpoch = sessionEpoch;
+        setAdminFeedback('el-admin-merge-feedback', '', false);
+        const srcSel = byId('el-admin-merge-source');
+        const tgtSel = byId('el-admin-merge-target');
+        const reasonEl = byId('el-admin-merge-reason');
+        const srcUid = srcSel ? srcSel.value : '';
+        const tgtUid = tgtSel ? tgtSel.value : '';
+        const reason = reasonEl ? reasonEl.value.trim() : '';
+        if (!srcUid || !tgtUid || srcUid === tgtUid) {
+          setAdminFeedback('el-admin-merge-feedback', 'Hồ sơ nguồn và hồ sơ đích phải là hai người bệnh khác nhau.', false);
+          return;
+        }
+        if (reason.length < 4) {
+          setAdminFeedback('el-admin-merge-feedback', 'Vui lòng nhập lý do kiểm toán tối thiểu 4 ký tự trước khi gộp hồ sơ.', false);
+          return;
+        }
+        const patItems = (state.adminPatients && Array.isArray(state.adminPatients.items)) ? state.adminPatients.items : [];
+        const srcPat = patItems.find((p) => p.patient_uid === srcUid);
+        const tgtPat = patItems.find((p) => p.patient_uid === tgtUid);
+        if (!srcPat || !tgtPat) {
+          setAdminFeedback('el-admin-merge-feedback', 'Danh sách người bệnh đã thay đổi; vui lòng tải lại trước khi gộp.', false);
+          return;
+        }
+        try {
+          const resp = await apiFetch('/api/admin/patients/merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              source_patient_uid: srcUid,
+              target_patient_uid: tgtUid,
+              expected_store_epoch: state.storeEpoch,
+              source_expected_version: Number(srcPat.version) || 1,
+              target_expected_version: Number(tgtPat.version) || 1,
+              expected_source_case_ids: Array.isArray(srcPat.active_case_ids) ? srcPat.active_case_ids : [],
+              confirm_demographic_conflict: Boolean(state.mergeDemoConfirm),
+              resolved_full_name: tgtPat.full_name || null,
+              resolved_birth_year: Number(tgtPat.birth_year) || null,
+              resolved_sex: tgtPat.sex || null,
+              confirm_distinct_mrn_override: Boolean(state.mergeMrnOverride),
+              primary_mrn_choice: 'TARGET',
+              reason
+            })
+          }, reqEpoch);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (!isSessionActiveForEpoch(reqEpoch)) return;
+            if (reasonEl) reasonEl.value = '';
+            state.mergeDemoConfirm = false;
+            state.mergeMrnOverride = false;
+            await loadAllClinicalViews(reqEpoch);
+            if (isSessionActiveForEpoch(reqEpoch)) {
+              setAdminFeedback(
+                'el-admin-merge-feedback',
+                'Đã gộp hồ sơ thành công (' + ((data.moved_case_ids && data.moved_case_ids.length) || 0) + ' ca chuyển liên kết dọc; giữ nguyên từng đợt điều trị riêng).',
+                true
+              );
+            }
+            return;
+          }
+          const errBody = await resp.json().catch(() => null);
+          setAdminFeedback('el-admin-merge-feedback', extractApiErrorMessageVi(errBody, resp.status), false);
+        } catch (err) {
+          if (isExpectedSessionTerminationError(err)) return;
+          setAdminFeedback('el-admin-merge-feedback', 'Không thể thực hiện gộp hồ sơ người bệnh do lỗi kết nối máy chủ.', false);
+        }
+      });
+    }
+
+    const reconcilePatSel = byId('el-admin-reconcile-patient');
+    if (reconcilePatSel) {
+      reconcilePatSel.addEventListener('change', () => {
+        populateReconcileEpisodeSelects();
+      });
+    }
+
+    const runReconcileBtn = byId('el-btn-run-episode-reconcile');
+    if (runReconcileBtn) {
+      runReconcileBtn.addEventListener('click', async () => {
+        if (!state.user || state.user.role !== 'superadmin') return;
+        const reqEpoch = sessionEpoch;
+        setAdminFeedback('el-admin-reconcile-feedback', '', false);
+        const patSel = byId('el-admin-reconcile-patient');
+        const srcEpSel = byId('el-admin-reconcile-src-ep');
+        const tgtEpSel = byId('el-admin-reconcile-tgt-ep');
+        const offEl = byId('el-admin-reconcile-ercp-offset');
+        const reasonEl = byId('el-admin-reconcile-reason');
+        const pUid = patSel ? patSel.value : '';
+        const srcEpId = srcEpSel ? srcEpSel.value : '';
+        const tgtEpId = tgtEpSel ? tgtEpSel.value : '';
+        const reason = reasonEl ? reasonEl.value.trim() : '';
+        const offsetVal = Math.max(0, Math.min(20, parseInt((offEl && offEl.value) || '0', 10) || 0));
+
+        if (!pUid || !srcEpId || !tgtEpId || srcEpId === tgtEpId) {
+          setAdminFeedback('el-admin-reconcile-feedback', 'Vui lòng chọn hai đợt điều trị nội trú khác nhau của cùng một người bệnh.', false);
+          return;
+        }
+        if (reason.length < 4) {
+          setAdminFeedback('el-admin-reconcile-feedback', 'Vui lòng nhập lý do đối soát đợt nội trú tối thiểu 4 ký tự.', false);
+          return;
+        }
+        const patItems = (state.adminPatients && Array.isArray(state.adminPatients.items)) ? state.adminPatients.items : [];
+        const patObj = patItems.find((p) => p.patient_uid === pUid);
+        const srcEp = patObj && (patObj.episodes || []).find((e) => e.episode_id === srcEpId);
+        const tgtEp = patObj && (patObj.episodes || []).find((e) => e.episode_id === tgtEpId);
+        if (!patObj || !srcEp || !tgtEp) {
+          setAdminFeedback('el-admin-reconcile-feedback', 'Danh sách đợt nội trú đã thay đổi; vui lòng tải lại trước khi hợp nhất.', false);
+          return;
+        }
+        const expectedCaseIds = Array.from(new Set(
+          (srcEp.active_case_ids || []).concat(tgtEp.active_case_ids || [])
+        ));
+
+        try {
+          const resp = await apiFetch('/api/admin/episodes/reconcile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              patient_uid: pUid,
+              source_episode_id: srcEpId,
+              target_episode_id: tgtEpId,
+              expected_store_epoch: state.storeEpoch,
+              expected_case_ids: expectedCaseIds,
+              resolved_prior_unrecorded_ercp_offset: offsetVal,
+              reason
+            })
+          }, reqEpoch);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (!isSessionActiveForEpoch(reqEpoch)) return;
+            if (reasonEl) reasonEl.value = '';
+            await loadAllClinicalViews(reqEpoch);
+            if (isSessionActiveForEpoch(reqEpoch)) {
+              setAdminFeedback(
+                'el-admin-reconcile-feedback',
+                'Đã hợp nhất đợt nội trú và đánh số lại thứ tự phiên ERCP (' + ((data.reassigned_case_ids && data.reassigned_case_ids.length) || 0) + ' ca chuyển đợt).',
+                true
+              );
+            }
+            return;
+          }
+          const errBody = await resp.json().catch(() => null);
+          setAdminFeedback('el-admin-reconcile-feedback', extractApiErrorMessageVi(errBody, resp.status), false);
+        } catch (err) {
+          if (isExpectedSessionTerminationError(err)) return;
+          setAdminFeedback('el-admin-reconcile-feedback', 'Không thể đối soát hợp nhất đợt nội trú do lỗi kết nối máy chủ.', false);
+        }
+      });
+    }
+
+    const runResetPwdBtn = byId('el-btn-run-reset-password');
+    if (runResetPwdBtn) {
+      runResetPwdBtn.addEventListener('click', async () => {
+        if (!state.user || state.user.role !== 'superadmin') return;
+        const reqEpoch = sessionEpoch;
+        setAdminFeedback('el-admin-user-feedback', '', false);
+        const targetSel = byId('el-admin-reset-target');
+        const newPwdEl = byId('el-admin-reset-password');
+        const targetUsername = targetSel ? targetSel.value : '';
+        const newPassword = newPwdEl ? newPwdEl.value : '';
+        if (!targetUsername) {
+          setAdminFeedback('el-admin-user-feedback', 'Vui lòng chọn tài khoản cần đặt lại mật khẩu.', false);
+          return;
+        }
+        if (newPassword.length < 12) {
+          setAdminFeedback('el-admin-user-feedback', 'Mật khẩu đặt lại phải có tối thiểu 12 ký tự.', false);
+          return;
+        }
+        try {
+          const resp = await apiFetch('/api/admin/users/' + encodeURIComponent(targetUsername) + '/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              new_password: newPassword,
+              reason: 'Quản trị viên cao cấp đặt lại mật khẩu xác thực Argon2id'
+            })
+          }, reqEpoch);
+          if (resp.ok) {
+            await resp.json();
+            if (!isSessionActiveForEpoch(reqEpoch)) return;
+            if (newPwdEl) newPwdEl.value = '';
+            await loadAllClinicalViews(reqEpoch);
+            if (isSessionActiveForEpoch(reqEpoch)) {
+              setAdminFeedback(
+                'el-admin-user-feedback',
+                'Đã đặt lại mật khẩu và thu hồi toàn bộ phiên cũ của tài khoản ' + targetUsername + '.',
+                true
+              );
+            }
+            return;
+          }
+          const errBody = await resp.json().catch(() => null);
+          setAdminFeedback('el-admin-user-feedback', extractApiErrorMessageVi(errBody, resp.status), false);
+        } catch (err) {
+          if (isExpectedSessionTerminationError(err)) return;
+          setAdminFeedback('el-admin-user-feedback', 'Không thể đặt lại mật khẩu do lỗi kết nối máy chủ.', false);
         }
       });
     }
@@ -4064,7 +4910,10 @@
         const reqEpoch = sessionEpoch;
         try {
           const resp = await apiFetch('/api/cases/' + encodeURIComponent(drawerState.editingCaseId), {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+              'If-Match': 'W/"e' + drawerState.expectedStoreEpoch + ':v' + drawerState.expectedVersion + '"'
+            }
           }, reqEpoch);
           if (resp.ok) {
             await loadAllClinicalViews(reqEpoch);
@@ -4074,6 +4923,16 @@
             return;
           }
           const errBody = await resp.json().catch(() => null);
+          if (resp.status === 409) {
+            const errCode = errBody && errBody.detail && errBody.detail.code;
+            setDrawerSyncBadge('Lỗi xung đột phiên bản (OCC)', 'urgent');
+            if (errCode === 'OCC_STORE_EPOCH_MISMATCH') {
+              setDrawerAlert('Xung đột kỷ nguyên kho dữ liệu (HTTP 409): Kho sổ bộ vừa được khôi phục sang thế hệ mới. Vui lòng đóng biểu mẫu và tải lại danh sách mới nhất trước khi hủy hiệu lực.');
+            } else {
+              setDrawerAlert('Xung đột phiên bản dữ liệu (HTTP 409): Hồ sơ đã thay đổi phiên bản. Vui lòng đóng biểu mẫu và mở lại bản mới nhất trước khi hủy hiệu lực.');
+            }
+            return;
+          }
           setDrawerAlert(extractApiErrorMessageVi(errBody, resp.status));
         } catch (err) {
           if (isExpectedSessionTerminationError(err)) return;
@@ -4167,7 +5026,7 @@
           return;
         }
         const data = await resp.json();
-        const ep = enterAuthenticatedShell(data.user, data.expires_in_seconds);
+        const ep = enterAuthenticatedShell(data.user, data.expires_in_seconds, data.store_epoch);
         await loadAllClinicalViews(ep);
       } catch (_err) {
         if (!state.user) {
@@ -4189,7 +5048,7 @@
         });
         if (resp.ok) {
           const data = await resp.json();
-          const ep = enterAuthenticatedShell(data.user, data.expires_in_seconds);
+          const ep = enterAuthenticatedShell(data.user, data.expires_in_seconds, data.store_epoch);
           await loadAllClinicalViews(ep);
         }
       } catch (_err) {
@@ -4198,6 +5057,32 @@
         }
       }
     });
+
+    const bypassAdminBtn = byId('el-btn-dev-bypass-admin');
+    if (bypassAdminBtn) {
+      bypassAdminBtn.addEventListener('click', async () => {
+        if (pendingLogoutPromise) {
+          await pendingLogoutPromise.catch(() => {});
+        }
+        try {
+          const resp = await fetch('/api/auth/local-bypass', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ target_username: 'vukhuongan' })
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const ep = enterAuthenticatedShell(data.user, data.expires_in_seconds, data.store_epoch);
+            await loadAllClinicalViews(ep);
+          }
+        } catch (_err) {
+          if (!state.user) {
+            setLoginErrorBanner('Không thể mở phiên quản trị giả lập do lỗi kết nối.');
+          }
+        }
+      });
+    }
 
     ['click', 'keydown', 'pointerdown'].forEach((evtName) => {
       window.addEventListener(evtName, resetIdleTimer, { passive: true });
@@ -4236,6 +5121,8 @@
     getSanitizedClientState() {
       return {
         hasUser: Boolean(state.user),
+        userRole: state.user ? state.user.role : null,
+        storeEpoch: state.storeEpoch,
         activeView: state.activeView,
         trackFilter: state.trackFilter,
         survFilter: state.survFilter,
@@ -4248,10 +5135,14 @@
         hasKpiBundle: state.kpiBundle !== null,
         hasCusumData: state.cusumData !== null,
         hasAuditStatus: state.auditStatus !== null,
+        hasAdminPatients: state.adminPatients !== null,
+        hasAdminUsers: state.adminUsers !== null,
+        restoreVaultTextLength: state.restoreVaultText.length,
         hasIdleTimer: state.idleTimer !== null,
         hasHardExpiryTimer: state.hardExpiryTimer !== null,
         isDrawerOpen: Boolean(drawerState.isOpen),
         isDetailModalOpen: Boolean(detailModalState.isOpen),
+        isPasswordModalOpen: Boolean(passwordModalState.isOpen),
         isDirty: Boolean(drawerState.isDirty),
         aeDraftCount: drawerState.aeItems.length,
         hasPendingDuplicatePayload: drawerState.pendingCreatePayload !== null,

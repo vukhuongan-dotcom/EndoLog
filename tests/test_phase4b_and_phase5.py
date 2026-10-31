@@ -162,14 +162,16 @@ def test_patch_if_match_header_occ_and_phase12_updates(tmp_path: Path) -> None:
     created = r_create.json()
     cid = created["case_id"]
     assert created["version"] == 1
-    assert r_create.headers.get("etag") == 'W/"v1"'
+    assert created["store_epoch"] == 1
+    assert r_create.headers.get("etag") == 'W/"e1:v1"'
 
-    # Valid If-Match W/"v1" + expected_version=1 updating Phase 1 & Phase 2 fields -> 200
+    # Valid If-Match W/"e1:v1" + expected_store_epoch=1 + expected_version=1 updating Phase 1 & Phase 2 fields -> 200
     r_patch_ok = client.patch(
         f"/api/cases/{cid}",
-        headers={"If-Match": 'W/"v1"'},
+        headers={"If-Match": 'W/"e1:v1"'},
         json={
             "expected_version": 1,
+            "expected_store_epoch": 1,
             "referring_dept": "Khoa Phẫu thuật Đại trực tràng",
             "indication": "THERAPEUTIC",
             "indication_detail": "Soi lại chuẩn bị đại tràng tích cực",
@@ -182,27 +184,27 @@ def test_patch_if_match_header_occ_and_phase12_updates(tmp_path: Path) -> None:
         },
     )
     assert r_patch_ok.status_code == 200, r_patch_ok.text
-    assert r_patch_ok.headers.get("etag") == 'W/"v2"'
+    assert r_patch_ok.headers.get("etag") == 'W/"e1:v2"'
     patched = r_patch_ok.json()
     assert patched["version"] == 2
     assert patched["episode"]["referring_dept"] == "Khoa Phẫu thuật Đại trực tràng"
     assert patched["cecal_intubation"] == "YES"
     assert patched["bbps"]["adequate"] is True
 
-    # Stale If-Match W/"v1" even with expected_version=2 -> 409 OCC_VERSION_CONFLICT
+    # Stale If-Match W/"e1:v1" even with expected_version=2 -> 409 OCC_VERSION_CONFLICT
     r_stale_hdr = client.patch(
         f"/api/cases/{cid}",
-        headers={"If-Match": 'W/"v1"'},
-        json={"expected_version": 2, "clinical_note": "Cập nhật từ tab cũ"},
+        headers={"If-Match": 'W/"e1:v1"'},
+        json={"expected_version": 2, "expected_store_epoch": 1, "clinical_note": "Cập nhật từ tab cũ"},
     )
     assert r_stale_hdr.status_code == 409
     assert r_stale_hdr.json()["detail"]["code"] == "OCC_VERSION_CONFLICT"
 
-    # Stale expected_version=1 even with If-Match W/"v2" -> 409 OCC_VERSION_CONFLICT
+    # Stale expected_version=1 even with If-Match W/"e1:v2" -> 409 OCC_VERSION_CONFLICT
     r_stale_body = client.patch(
         f"/api/cases/{cid}",
-        headers={"If-Match": 'W/"v2"'},
-        json={"expected_version": 1, "clinical_note": "Cập nhật lệch body"},
+        headers={"If-Match": 'W/"e1:v2"'},
+        json={"expected_version": 1, "expected_store_epoch": 1, "clinical_note": "Cập nhật lệch body"},
     )
     assert r_stale_body.status_code == 409
     assert r_stale_body.json()["detail"]["code"] == "OCC_VERSION_CONFLICT"
@@ -260,9 +262,10 @@ def test_dlp_blocks_phi_in_clinical_ercp_and_ae_notes_with_422(tmp_path: Path) -
 
     r_ae_cccd = client.patch(
         f"/api/cases/{cid}",
-        headers={"If-Match": 'W/"v1"'},
+        headers={"If-Match": 'W/"e1:v1"'},
         json={
             "expected_version": 1,
+            "expected_store_epoch": 1,
             "followup_30d_status": "COMPLETED_WITH_AE",
             "adverse_events": [
                 {
@@ -283,19 +286,19 @@ def test_settings_roundtrip_and_profile_a_rbac(tmp_path: Path) -> None:
     client = _build_client(tmp_path, auto_seed=True)
     _login_bypass(client, "nguyenbinhan")
 
-    # Endoscopist updates clinical settings
-    r_set = client.patch(
+    # Endoscopist can update guideline mode (200), but gets 403 on statistical thresholds
+    r_guide_ok = client.patch(
         "/api/settings",
-        json={
-            "colo_guideline_mode": "ESGE_2020",
-            "kpi_min_sample_size": 15,
-            "cusum_preset": "SCREENING_CIR_95",
-        },
+        json={"colo_guideline_mode": "ESGE_2020"},
     )
-    assert r_set.status_code == 200, r_set.text
-    kpi_json = client.get("/api/metrics/kpi").json()
-    assert kpi_json["kpi"]["n_min"] == 15
-    assert kpi_json["cusum_cir"]["preset"] == "SCREENING_CIR_95"
+    assert r_guide_ok.status_code == 200, r_guide_ok.text
+    assert r_guide_ok.json()["colo_guideline_mode"] == "ESGE_2020"
+
+    r_stat_forbidden = client.patch(
+        "/api/settings",
+        json={"kpi_min_sample_size": 15, "cusum_preset": "SCREENING_CIR_95"},
+    )
+    assert r_stat_forbidden.status_code == 403
 
     # Endoscopist cannot export Profile A or supersede a case (403)
     r_prof_a_forbidden = client.post(
@@ -306,8 +309,20 @@ def test_settings_roundtrip_and_profile_a_rbac(tmp_path: Path) -> None:
     first_cid = client.get("/api/cases").json()["items"][0]["case_id"]
     assert client.delete(f"/api/cases/{first_cid}").status_code == 403
 
-    # Superadmin (BSCKII. Vũ Khương An) succeeds on both Profile A backup and supersede
+    # Superadmin (BSCKII. Vũ Khương An) succeeds on statistical settings, Profile A backup, and supersede
     _login_bypass(client, "vukhuongan")
+    r_set_super = client.patch(
+        "/api/settings",
+        json={
+            "colo_guideline_mode": "ESGE_2020",
+            "kpi_min_sample_size": 15,
+            "cusum_preset": "SCREENING_CIR_95",
+        },
+    )
+    assert r_set_super.status_code == 200, r_set_super.text
+    kpi_json = client.get("/api/metrics/kpi").json()
+    assert kpi_json["kpi"]["n_min"] == 15
+    assert kpi_json["cusum_cir"]["preset"] == "SCREENING_CIR_95"
     r_prof_a_ok = client.post(
         "/api/exports/profile-a", json={"passphrase": "MatKhauSaoLuuRatManh2026!"}
     )

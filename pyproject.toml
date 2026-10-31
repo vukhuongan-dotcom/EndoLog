@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "endolog"
-version = "0.2.3"
+version = "0.3.0"
 description = "Hệ thống sổ bộ lâm sàng & đánh giá chất lượng nội soi tiêu hoá — Khoa Nội soi Tiêu hóa, Bệnh viện Bình Dân"
 readme = "README.md"
 requires-python = ">=3.12"

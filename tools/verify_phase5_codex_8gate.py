@@ -38,6 +38,10 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+from endolog import __version__ as ENDOLOG_VERSION  # noqa: E402
+
 VERIF_DIR = REPO_ROOT / "docs" / "verification"
 SCREENSHOT_DIR = REPO_ROOT / "docs" / "brand" / "screenshots"
 BRAIN_DIR = Path("/Users/khuonganvu/.gemini/antigravity/brain/5c360f0d-e4f4-4860-8e5e-8aa35a4b9a33")
@@ -926,13 +930,67 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                 page.locator("#el-btn-dirty-discard").click()
                 page.locator("#el-case-drawer-backdrop").wait_for(state="hidden", timeout=3000)
 
-                # Settings panel roundtrip in Quality view (update n_min=5 -> badges switch from Chưa đủ cỡ mẫu to evaluated!)
+                # Phase 4C RBAC & Superadmin Governance Suite E2E check in Quality view:
+                # (a) Endoscopist (nguyenbinhan): n_min is disabled, Superadmin grid is hidden, personal guideline save works, password modal opens/closes via Escape
                 _switch_view(page, "quality", 1440)
+                if not page.locator("#el-setting-n-min").is_disabled():
+                    g3_errs.append("Tài khoản endoscopist không bị khóa ô n_min cấp khoa (#el-setting-n-min phải disabled)")
+                if not page.evaluate("() => document.getElementById('el-superadmin-grid').hidden"):
+                    g3_errs.append("Lưới thao tác Superadmin (#el-superadmin-grid) không bị ẩn đối với endoscopist")
+                page.locator("#el-setting-guideline").select_option("ESGE_2020")
+                page.locator("#el-btn-save-settings").click()
+                page.wait_for_timeout(200)
+                if "Đã lưu cấu hình" not in page.locator("#el-settings-feedback").inner_text():
+                    g3_errs.append("Bác sĩ nội soi lưu cấu hình cá nhân (colo_guideline_mode) không phản hồi thành công")
+                page.locator("#el-setting-guideline").select_option("USMSTF_2020")
+                page.locator("#el-btn-save-settings").click()
+                page.wait_for_timeout(140)
+
+                page.locator("#el-btn-change-password").click()
+                page.locator("#el-password-modal-backdrop").wait_for(state="visible", timeout=3000)
+                if not page.evaluate("() => document.getElementById('el-app-shell').hasAttribute('inert')"):
+                    g3_errs.append("#el-app-shell thiếu inert khi mở hộp thoại đổi mật khẩu")
+                page.keyboard.press("Escape")
+                page.locator("#el-password-modal-backdrop").wait_for(state="hidden", timeout=3000)
+
+                # (b) Switch to Superadmin (BSCKII. Vũ Khương An) via dev-bypass-admin -> verify Superadmin grid, 0 UPPER_SNAKE_CASE, >=44px targets, and n_min=5 -> 20 roundtrip
+                page.locator("#el-btn-logout").click()
+                page.locator("#el-login-screen").wait_for(state="visible", timeout=5000)
+                page.locator("#el-btn-dev-bypass-admin").click()
+                page.locator("#el-app-shell").wait_for(state="visible", timeout=5000)
+                page.locator("#el-case-list .el-case-card").first.wait_for(state="visible", timeout=5000)
+                _switch_view(page, "quality", 1440)
+                page.wait_for_timeout(180)
+                if page.evaluate("() => document.getElementById('el-superadmin-grid').hidden"):
+                    g3_errs.append("Tài khoản Superadmin không hiển thị lưới quản trị #el-superadmin-grid")
+                if page.locator("#el-setting-n-min").is_disabled():
+                    g3_errs.append("Tài khoản Superadmin bị khóa nhầm ô #el-setting-n-min")
+
+                admin_panel_text = page.locator("#el-superadmin-panel").inner_text()
+                admin_raw_snake = re.findall(r"\b[A-Z0-9]{2,}(?:_[A-Z0-9]+)+\b", admin_panel_text)
+                if admin_raw_snake:
+                    g3_errs.append(f"Bảng quản trị Superadmin rò rỉ mã UPPER_SNAKE_CASE: {admin_raw_snake}")
+
+                admin_small_targets = page.evaluate(
+                    """() => {
+                        const els = Array.from(document.querySelectorAll('#el-superadmin-panel button, #el-superadmin-panel input, #el-superadmin-panel select'));
+                        return els.filter(el => {
+                            if (el.hidden) return false;
+                            const cs = getComputedStyle(el);
+                            if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+                            const r = el.getBoundingClientRect();
+                            return r.width > 0 && r.height > 0 && (r.width < 44 || r.height < 44);
+                        }).map(el => ({ id: el.id, w: Math.round(el.getBoundingClientRect().width), h: Math.round(el.getBoundingClientRect().height) }));
+                    }"""
+                )
+                if admin_small_targets:
+                    g3_errs.append(f"Bảng quản trị Superadmin có nút/ô < 44x44 px: {admin_small_targets}")
+
                 page.locator("#el-setting-n-min").fill("5")
                 page.locator("#el-btn-save-settings").click()
                 page.wait_for_timeout(180)
                 if "Đã lưu cấu hình" not in page.locator("#el-settings-feedback").inner_text():
-                    g3_errs.append("Lưu cấu hình chuyên môn trên màn Chỉ số chất lượng không phản hồi thành công")
+                    g3_errs.append("Superadmin lưu cấu hình cấp khoa (n_min=5) không phản hồi thành công")
                 # Restore n_min=20
                 page.locator("#el-setting-n-min").fill("20")
                 page.locator("#el-btn-save-settings").click()
@@ -1097,7 +1155,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     measured_evidence = {
         "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.3",
+        "version": ENDOLOG_VERSION,
         "overall_status": overall_status,
         "ergonomic_click_budget_proxy": gates["GATE_3_ERGONOMICS_AND_4PHASE_WORKFLOWS"]["metrics"],
         "viewport_and_mobile_budget": gates["GATE_4_MULTIVIEWPORT_AND_MOBILE_BUDGET"]["metrics"],
@@ -1114,7 +1172,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     test_report = {
         "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.3",
+        "version": ENDOLOG_VERSION,
         "overall_status": overall_status,
         "gates_passed": sum(1 for g in gates.values() if g["status"] == "PASS"),
         "gates_total": len(gates),

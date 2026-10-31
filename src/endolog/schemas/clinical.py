@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -246,6 +246,7 @@ class CasePhasePatchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     expected_version: int = Field(..., ge=1)
+    expected_store_epoch: int | None = Field(default=None, ge=1)
     procedure_start_at: str | None = None
     referring_dept: str | None = None
     prior_unrecorded_ercp_offset: int | None = Field(default=None, ge=0, le=20)
@@ -269,3 +270,182 @@ class CasePhasePatchRequest(BaseModel):
     adverse_events: list[AdverseEventRecord] | None = None
     clinical_note: str | None = None
     fulfill_surveillance_rec_id: str | None = None
+
+
+class PasswordChangeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(..., min_length=6, max_length=128)
+    new_password: str = Field(..., min_length=12, max_length=128)
+
+
+class AdminPasswordResetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    new_password: str = Field(..., min_length=12, max_length=128)
+    reason: str = Field(default="Đặt lại mật khẩu quản trị", min_length=3, max_length=300)
+
+
+class ProfileARestoreRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    vault_text: str | None = None
+    vault_envelope: dict[str, Any] | None = None
+    vault_base64: str | None = None
+    passphrase: str = Field(..., min_length=12, max_length=128)
+    expected_store_epoch: int | None = Field(default=None, ge=1)
+    preserve_current_users: bool = True
+    key_mismatch_policy: Literal["REJECT", "REKEY_AND_BUMP_DATASET_EPOCH"] = "REJECT"
+
+
+class PatientMergeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_patient_uid: str = Field(..., min_length=4, max_length=80)
+    target_patient_uid: str = Field(..., min_length=4, max_length=80)
+    expected_store_epoch: int = Field(..., ge=1)
+    source_expected_version: int = Field(..., ge=1)
+    target_expected_version: int = Field(..., ge=1)
+    expected_source_case_ids: list[str] = Field(default_factory=list)
+    confirm_demographic_conflict: bool = False
+    resolved_full_name: str | None = Field(default=None, min_length=2, max_length=120)
+    resolved_birth_year: int | None = Field(default=None, ge=1900, le=2026)
+    resolved_sex: SexType | None = None
+    confirm_distinct_mrn_override: bool = False
+    primary_mrn_choice: Literal["TARGET", "SOURCE"] = "TARGET"
+    reason: str = Field(default="Gộp hồ sơ người bệnh trùng lặp", min_length=3, max_length=300)
+
+
+class EpisodeReconcileRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    patient_uid: str = Field(..., min_length=4, max_length=80)
+    source_episode_id: str = Field(..., min_length=4, max_length=80)
+    target_episode_id: str = Field(..., min_length=4, max_length=80)
+    expected_store_epoch: int = Field(..., ge=1)
+    expected_case_ids: list[str] = Field(default_factory=list)
+    resolved_prior_unrecorded_ercp_offset: int = Field(..., ge=0, le=20)
+    reason: str = Field(default="Hợp nhất đợt nhập viện nội trú trùng lặp", min_length=3, max_length=300)
+
+
+class StoredSettingsRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default_operator_name: str = "ThS. BSCKI. Nguyễn Bình An"
+    colo_guideline_mode: Literal["USMSTF_2020", "ESGE_2020"] = "USMSTF_2020"
+    adr_min_age: Literal[45, 50] = 45
+    cusum_preset: Literal["DEFAULT_90", "SCREENING_CIR_95"] = "DEFAULT_90"
+    kpi_min_sample_size: int = Field(default=20, ge=1, le=500)
+    export_dataset_epoch: int = Field(default=1, ge=1)
+    profile_b_lineage_seq: int = Field(default=1, ge=1)
+
+
+class StoredUserRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(..., min_length=2, max_length=64)
+    display_name: str = Field(..., min_length=2, max_length=120)
+    role: Literal["superadmin", "endoscopist"]
+    department: str = Field(..., min_length=2, max_length=200)
+    password_hash: str = Field(..., min_length=16, max_length=512)
+    active: bool = True
+    auth_version: int = Field(default=1, ge=1)
+    created_at: str
+    password_updated_at: str | None = None
+
+
+class StoredPatientRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    patient_uid: str = Field(..., min_length=4, max_length=80)
+    full_name: str = Field(..., min_length=2, max_length=120)
+    privacy_initials: str = Field(..., min_length=1, max_length=20)
+    birth_year: int = Field(..., ge=1900, le=2026)
+    sex: SexType
+    hospital_mrn: str | None = Field(default=None, max_length=40)
+    hospital_mrn_masked: str | None = Field(default=None, max_length=40)
+    hospital_mrn_hash: str | None = None
+    status: Literal["ACTIVE", "MERGED_SUPERSEDED"] = "ACTIVE"
+    created_at: str
+    updated_at: str | None = None
+    version: int = Field(default=1, ge=1)
+    merged_into_patient_uid: str | None = None
+    secondary_mrn_hashes: list[str] = Field(default_factory=list)
+    secondary_mrns: list[str] = Field(default_factory=list)
+    merged_from_aliases: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class StoredEpisodeRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    episode_id: str = Field(..., min_length=4, max_length=80)
+    patient_uid: str = Field(..., min_length=4, max_length=80)
+    care_setting: CareSettingType
+    admission_date: str
+    discharge_date: str | None = None
+    referring_dept: str = "Khoa Nội soi Tiêu hóa"
+    prior_unrecorded_ercp_offset: int = Field(default=0, ge=0, le=20)
+    created_at: str
+    updated_at: str | None = None
+    status: Literal["ACTIVE", "MERGED_SUPERSEDED"] = "ACTIVE"
+    merged_into_episode_id: str | None = None
+
+
+class StoredCaseRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(..., min_length=4, max_length=80)
+    case_code: str = Field(..., min_length=8, max_length=32)
+    patient_uid: str = Field(..., min_length=4, max_length=80)
+    episode_id: str = Field(..., min_length=4, max_length=80)
+    track: TrackType
+    care_setting: CareSettingType
+    procedure_start_at: str
+    created_at: str
+    updated_at: str
+    operator_name: str
+    indication: ColoIndicationType = "DIAGNOSTIC"
+    indication_detail: str = ""
+    has_ibd_or_polyposis: bool = False
+    exclude_from_cir: bool = False
+    prior_unrecorded_ercp_offset: int = Field(default=0, ge=0, le=20)
+    bbps_right: int | None = Field(default=None, ge=0, le=3)
+    bbps_transverse: int | None = Field(default=None, ge=0, le=3)
+    bbps_left: int | None = Field(default=None, ge=0, le=3)
+    cecal_intubation: Literal["NA", "YES", "NO"] = "NA"
+    cecal_failure_reason: str = ""
+    withdrawal_time_clean_min: float | None = Field(default=None, ge=0, le=180)
+    pathology_completion_status: PathologyCompletionType = "NOT_APPLICABLE"
+    followup_30d_status: Followup30dStatusType = "PENDING_WINDOW"
+    clinician_followup_due_date: str | None = None
+    clinician_followup_note: str = ""
+    index_lesion: IndexLesion | None = None
+    whole_case_summary: WholeCasePolypSummary | None = None
+    ercp_detail: ErcpProcedureDetail | None = None
+    adverse_events: list[AdverseEventRecord] = Field(default_factory=list)
+    clinical_note: str = ""
+    version: int = Field(default=1, ge=1)
+    record_status: Literal["ACTIVE", "SUPERSEDED"] = "ACTIVE"
+
+
+class StoredSurveillanceRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rec_id: str | None = None
+    origin_case_id: str
+    case_code: str
+    track: TrackType
+    guideline_id: str
+    guideline_version: str
+    category: str
+    recommended_interval_code: str | None = None
+    recommended_interval_label: str
+    reference_guideline_id: str | None = None
+    reference_interval_code: str | None = None
+    reference_interval_label: str | None = None
+    is_divergent_guideline: bool = False
+    due_date: str | None = None
+    surgical_consult_target_dept: str | None = None
+    reason: str
+    status: str
+    fulfilled_by_case_id: str | None = None

@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+from pathlib import Path
 from typing import Any
 
 GENESIS_HASH = "0" * 64
@@ -125,4 +126,70 @@ def verify_audit_chain(chain: list[dict[str, Any]]) -> dict[str, Any]:
         "head_hash": expected_prev,
         "broken_at_seq": None,
         "reason": "OK",
+    }
+
+
+def verify_audit_lineage_bridges(
+    bridges: list[dict[str, Any]] | None,
+    *,
+    backup_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Verify two-way cryptographic restore lineage bridges without exposing OS paths or PHI (G04)."""
+    items = bridges or []
+    verified_items: list[dict[str, Any]] = []
+    all_valid = True
+
+    for idx, raw in enumerate(items, start=1):
+        fname = str(raw.get("pre_restore_filename") or "").strip()
+        expected_sha = str(raw.get("pre_restore_sha256") or "").strip().lower()
+        safe_basename = bool(
+            fname
+            and Path(fname).name == fname
+            and fname.startswith("pre_restore_")
+            and fname.endswith(".json")
+        )
+        file_present = False
+        sha256_matches = False
+        if safe_basename and backup_dir is not None:
+            candidate_path = backup_dir / fname
+            if candidate_path.is_file():
+                file_present = True
+                try:
+                    actual_sha = hashlib.sha256(candidate_path.read_bytes()).hexdigest()
+                    sha256_matches = bool(expected_sha) and actual_sha == expected_sha
+                except OSError:
+                    sha256_matches = False
+        bridge_ok = bool(
+            safe_basename
+            and len(expected_sha) == 64
+            and (backup_dir is None or (file_present and sha256_matches))
+        )
+        if not bridge_ok:
+            all_valid = False
+        verified_items.append(
+            {
+                "bridge_index": idx,
+                "restored_at_utc": raw.get("restored_at_utc"),
+                "actor_username": raw.get("actor_username"),
+                "previous_store_epoch": raw.get("previous_store_epoch", 1),
+                "new_store_epoch": raw.get("new_store_epoch"),
+                "vault_blob_sha256": raw.get("vault_blob_sha256"),
+                "backup_pre_append_head_hash": raw.get("backup_pre_append_head_hash"),
+                "backup_pre_append_seq": raw.get("backup_pre_append_seq"),
+                "displaced_live_head_hash": raw.get("displaced_live_head_hash"),
+                "displaced_live_seq": raw.get("displaced_live_seq"),
+                "pre_restore_filename": fname if safe_basename else "INVALID_FILENAME",
+                "pre_restore_sha256": expected_sha,
+                "pre_restore_file_present": file_present,
+                "pre_restore_sha256_valid": sha256_matches,
+                "preserve_current_users": bool(raw.get("preserve_current_users", True)),
+                "key_mismatch_policy": raw.get("key_mismatch_policy", "REJECT"),
+                "valid": bridge_ok,
+            }
+        )
+
+    return {
+        "valid": all_valid,
+        "bridge_count": len(verified_items),
+        "items": verified_items,
     }

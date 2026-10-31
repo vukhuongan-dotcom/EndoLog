@@ -29,6 +29,15 @@ LOOPBACK_IPS = {"127.0.0.1", "::1"}
 TRUSTED_LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]"}
 
 
+class SessionRevokedError(Exception):
+    """Raised when a syntactically valid JWT has been revoked by server state (G01)."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        self.message = message
+        super().__init__(message)
+
+
 def hash_password(plain_password: str) -> str:
     return _HASHER.hash(plain_password)
 
@@ -47,6 +56,8 @@ def create_access_token(
     role: str,
     display_name: str,
     department: str,
+    auth_ver: int = 1,
+    store_epoch: int = 1,
 ) -> tuple[str, int]:
     now = dt.datetime.now(dt.timezone.utc)
     exp = now + dt.timedelta(seconds=settings.session_timeout_seconds)
@@ -55,6 +66,8 @@ def create_access_token(
         "role": role,
         "display_name": display_name,
         "department": department,
+        "auth_ver": max(1, int(auth_ver)),
+        "store_epoch": max(1, int(store_epoch)),
         "iat": int(now.timestamp()),
         "exp": int(exp.timestamp()),
         "jti": secrets.token_hex(12),
@@ -65,6 +78,74 @@ def create_access_token(
 
 def decode_access_token(settings: EndoLogSettings, token: str) -> dict[str, Any]:
     return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+
+
+def prune_expired_revoked_jtis(
+    revoked_jtis: Mapping[str, Any] | None,
+    *,
+    now_ts: int | None = None,
+) -> dict[str, int]:
+    effective_now = int(dt.datetime.now(dt.timezone.utc).timestamp()) if now_ts is None else int(now_ts)
+    if not revoked_jtis:
+        return {}
+    pruned: dict[str, int] = {}
+    for jti_key, exp_val in revoked_jtis.items():
+        try:
+            exp_int = int(exp_val)
+        except (TypeError, ValueError):
+            continue
+        if exp_int >= effective_now:
+            pruned[str(jti_key)] = exp_int
+    return pruned
+
+
+def validate_live_session_claims(
+    claims: Mapping[str, Any],
+    snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Server-authoritative JWT check against store_epoch, revoked_jtis, active user, and auth_version (G01)."""
+    live_epoch = int(snapshot.get("store_epoch", 1) or 1)
+    token_epoch = int(claims.get("store_epoch", 0) or 0)
+    if token_epoch != live_epoch:
+        raise SessionRevokedError(
+            "TOKEN_STORE_EPOCH_REVOKED",
+            "Phiên làm việc đã bị thu hồi do kho dữ liệu chuyển sang thế hệ mới.",
+        )
+
+    jti = str(claims.get("jti") or "").strip()
+    revoked_map = snapshot.get("revoked_jtis") or {}
+    if not jti or jti in revoked_map:
+        raise SessionRevokedError(
+            "TOKEN_LOGGED_OUT",
+            "Phiên làm việc đã đăng xuất và bị thu hồi trên máy chủ.",
+        )
+
+    sub = str(claims.get("sub") or "").strip()
+    users_map = snapshot.get("users") or {}
+    live_user = users_map.get(sub)
+    if not isinstance(live_user, Mapping) or live_user.get("active") is not True:
+        raise SessionRevokedError(
+            "USER_INACTIVE_OR_REMOVED",
+            "Tài khoản không tồn tại hoặc đã ngừng kích hoạt.",
+        )
+
+    live_auth_ver = int(live_user.get("auth_version", 1) or 1)
+    token_auth_ver = int(claims.get("auth_ver", 0) or 0)
+    if token_auth_ver != live_auth_ver:
+        raise SessionRevokedError(
+            "TOKEN_AUTH_VERSION_REVOKED",
+            "Phiên làm việc đã bị thu hồi do thay đổi hoặc đặt lại mật khẩu.",
+        )
+
+    return {
+        **dict(claims),
+        "sub": str(live_user["username"]),
+        "role": str(live_user["role"]),
+        "display_name": str(live_user["display_name"]),
+        "department": str(live_user["department"]),
+        "auth_ver": live_auth_ver,
+        "store_epoch": live_epoch,
+    }
 
 
 def _extract_host_without_port(raw_host: str) -> str:

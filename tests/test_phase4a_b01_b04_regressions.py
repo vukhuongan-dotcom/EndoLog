@@ -808,9 +808,13 @@ def test_b03_zero_phi_http_headers_and_httponly_cookie_contract(tmp_path: Path) 
         assert resp.headers.get("expires") == "0"
         assert "default-src 'self'" in resp.headers.get("content-security-policy", "")
 
-    # Verify R3 kpi_min_sample_size setting defaults to 20 and BS. An can update it via PATCH /api/settings
+    # Verify R3 + Phase 4C RBAC: kpi_min_sample_size defaults to 20, endoscopist gets 403 on statistical thresholds, superadmin updates 200
     assert client.get("/api/settings").json()["kpi_min_sample_size"] == 20
-    r_patch_nmin = client.patch("/api/settings", json={"kpi_min_sample_size": 2})
+    assert client.patch("/api/settings", json={"kpi_min_sample_size": 2}).status_code == 403
+    assert client.patch("/api/settings", json={"colo_guideline_mode": "ESGE_2020"}).status_code == 200
+
+    assert client.post("/api/auth/local-bypass", json={"target_username": "vukhuongan"}).status_code == 200
+    r_patch_nmin = client.patch("/api/settings", json={"kpi_min_sample_size": 2, "colo_guideline_mode": "USMSTF_2020"})
     assert r_patch_nmin.status_code == 200
     assert r_patch_nmin.json()["kpi_min_sample_size"] == 2
     assert client.get("/api/metrics/kpi").json()["kpi"]["cir"]["status"] == "met"

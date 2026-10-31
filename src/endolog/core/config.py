@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 ValidEnvMode = Literal[
     "local_dev_synthetic",
@@ -41,6 +43,21 @@ class EndoLogSettings:
     @property
     def has_phi_vault_marker(self) -> bool:
         return (self.data_dir / ".phi_vault_marker").exists()
+
+    @property
+    def mrn_key_fp(self) -> str:
+        return hmac.new(self.master_research_key, b"endolog-fp:mrn:v1", hashlib.sha256).hexdigest()[:16]
+
+    @property
+    def shift_key_fp(self) -> str:
+        return hmac.new(self.shift_key, b"endolog-fp:shift:v1", hashlib.sha256).hexdigest()[:16]
+
+    def build_crypto_context(self, export_dataset_epoch: int = 1) -> dict[str, Any]:
+        return {
+            "mrn_key_fp": self.mrn_key_fp,
+            "shift_key_fp": self.shift_key_fp,
+            "export_dataset_epoch": max(1, int(export_dataset_epoch)),
+        }
 
     def validate_startup_safety(self) -> None:
         """Enforce fail-closed isolation invariants before serving requests."""

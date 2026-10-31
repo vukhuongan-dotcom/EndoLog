@@ -5,6 +5,15 @@ Mọi thay đổi đáng chú ý của dự án **EndoLog** (*Hệ Thống Sổ 
 Định dạng tuân thủ chuẩn [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) và quy tắc đánh số phiên bản theo [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) (`MAJOR.MINOR.PATCH`).
 Các nhóm phân loại hợp lệ: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.3.0] - 2026-10-31
+
+### Added
+- Triển khai **Phase 4C (`v0.3.0` — Phân hệ Quản trị Superadmin & Bảo toàn Toàn vẹn Sổ bộ)** theo Kế hoạch `v2.1` đã được `BSCKII. Vũ Khương An` phê duyệt (`G01–G05`):
+  - **Quản trị tài khoản & thu hồi phiên tức thì (`G01`):** bổ sung `POST /api/auth/change-password`, `GET /api/admin/users`, `POST /api/admin/users/{username}/reset-password`, nút chuyển phiên nhanh `BSCKII. Vũ Khương An` (`#el-btn-dev-bypass-admin`, chỉ mở trong `local_dev_synthetic`), hộp thoại đổi mật khẩu `#el-password-modal-backdrop`, và cơ chế đối chiếu phiên sống (`auth_ver`, `store_epoch`, `revoked_jtis`) thu hồi tức thì mọi JWT cũ khi đăng xuất, đổi mật khẩu, đặt lại mật khẩu hoặc khôi phục bảng người dùng.
+  - **Khôi phục nguyên tử kho sao lưu mã hóa Hồ sơ A (`G02`, `G03`, `G04`):** bổ sung `POST /api/admin/restore-profile-a` với giới hạn luồng đọc `10 MiB` trước KDF, kiểm định lược đồ nghiêm ngặt `extra="forbid"` + toàn vẹn khóa ngoại + chuỗi băm kiểm toán bên trong kho, đối chiếu dấu vân tay khóa HMAC liên máy chủ (`mrn_key_fp`, `shift_key_fp`, chính sách `REJECT` mặc định hoặc `REKEY_AND_BUMP_DATASET_EPOCH` tăng `export_dataset_epoch`), giao dịch chụp ảnh an toàn `pre_restore_*.json` nguyên tử (`O_CREAT | O_EXCL` + `fsync` tệp & thư mục trước khi chạm kho sống), tăng `store_epoch` kèm `ETag` `W/"e{store_epoch}:v{version}"` chống ghi đè cũ, và cầu nối kiểm toán `audit_lineage_bridges` trên `GET /api/audit/verify`.
+  - **Tách bạch gộp người bệnh với đối soát đợt nội trú (`G05`):** bổ sung `GET /api/admin/patients`, `POST /api/admin/patients/merge` (bảo toàn 100% ranh giới `episode_id` và chỉ số phiên `ERCP`, lưu vết `MERGED_SUPERSEDED` chuẩn Zero-RM, chặn ghi mới vào định danh cũ `409 PATIENT_MERGED_SUPERSEDED`, ánh xạ `secondary_mrn_hashes`) và `POST /api/admin/episodes/reconcile` (chỉ áp dụng cho `INPATIENT`, tính lại tất định thứ tự phiên `ERCP`, tăng `profile_b_lineage_seq` trên `Hồ sơ B`).
+  - **Giao diện quản trị Superadmin (`#el-superadmin-panel`) & phân quyền cấu hình cấp khoa:** phân tách cấu hình cá nhân (`colo_guideline_mode`, `adr_min_age`) với cấu hình thống kê cấp khoa (`kpi_min_sample_size`, `cusum_preset` chỉ `superadmin` chỉnh sửa), 4 thẻ quản trị tiếng Việt tự nhiên (`0` mã `UPPER_SNAKE_CASE`, `100%` biến màu `tokens.css`, vùng chạm `>= 44×44 px`) và bộ kiểm thử `tests/test_superadmin_governance.py` ([FEAT-010]).
+
 ## [0.2.3] - 2026-10-31
 
 ### Changed

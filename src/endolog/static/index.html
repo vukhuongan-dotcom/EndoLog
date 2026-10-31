@@ -8,9 +8,9 @@
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/css/fonts.css?v=0.2.3">
-  <link rel="stylesheet" href="/css/tokens.css?v=0.2.3">
-  <link rel="stylesheet" href="/css/app.css?v=0.2.3">
+  <link rel="stylesheet" href="/css/fonts.css?v=0.3.0">
+  <link rel="stylesheet" href="/css/tokens.css?v=0.3.0">
+  <link rel="stylesheet" href="/css/app.css?v=0.3.0">
 </head>
 <body>
   <!-- Màn hình đăng nhập (Zero-Image, tên đầy đủ tiếng Việt) -->
@@ -55,6 +55,13 @@
               <line x1="15" y1="12" x2="3" y2="12"/>
             </svg>
             <span>Mở phiên giả lập cục bộ (5 ca chuẩn OD-05)</span>
+          </button>
+          <button type="button" id="el-btn-dev-bypass-admin" class="el-btn el-btn--secondary" hidden>
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+            <span>Mở phiên quản trị giả lập (BSCKII. Vũ Khương An)</span>
           </button>
         </div>
         <div id="el-login-error" class="el-error-banner" role="alert" hidden></div>
@@ -110,6 +117,15 @@
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
               </svg>
               <span id="el-theme-label" class="el-btn-label-desktop">Nền tối</span>
+            </button>
+
+            <button type="button" id="el-btn-change-password" class="el-btn el-btn--secondary el-btn--icon" aria-label="Đổi mật khẩu tài khoản">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                <circle cx="12" cy="16" r="1"/>
+              </svg>
+              <span class="el-btn-label-desktop">Đổi mật khẩu</span>
             </button>
 
             <button type="button" id="el-btn-logout" class="el-btn el-btn--secondary el-btn--icon" aria-label="Đăng xuất phiên làm việc">
@@ -283,7 +299,7 @@
           <div class="el-settings-head">
             <div>
               <h2 id="el-settings-heading" class="el-chart-title">Cấu hình chuyên môn &amp; ngưỡng thống kê</h2>
-              <p class="el-chart-disclaimer">Áp dụng tức thì cho khuyến cáo hẹn soi lại, cỡ mẫu tối thiểu cá nhân và tham số đường cong kiểm soát chất lượng</p>
+              <p id="el-settings-role-hint" class="el-chart-disclaimer">Áp dụng tức thì cho khuyến cáo hẹn soi lại, cỡ mẫu tối thiểu cá nhân và tham số đường cong kiểm soát chất lượng</p>
             </div>
             <span id="el-settings-feedback" class="el-settings-feedback" aria-live="polite"></span>
           </div>
@@ -310,6 +326,186 @@
                 <span>Lưu cấu hình</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- PHÂN HỆ QUẢN TRỊ SỔ BỘ & TOÀN VẸN DỮ LIỆU (SUPERADMIN — PHASE 4C) -->
+        <div id="el-superadmin-panel" class="el-superadmin-panel" role="region" aria-labelledby="el-superadmin-heading">
+          <div class="el-settings-head">
+            <div>
+              <h2 id="el-superadmin-heading" class="el-chart-title">Quản trị sổ bộ &amp; toàn vẹn dữ liệu (Superadmin)</h2>
+              <p class="el-chart-disclaimer">Khôi phục nguyên tử kho sao lưu mã hóa Hồ sơ A, gộp hồ sơ người bệnh trùng, đối soát đợt nội trú và quản lý khóa xác thực Argon2id</p>
+            </div>
+            <span id="el-superadmin-epoch-badge" class="el-sync-pill">Kỷ nguyên kho #1</span>
+          </div>
+
+          <div id="el-superadmin-readonly-notice" class="el-admin-readonly-notice">
+            Phân hệ quản trị dữ liệu gốc chỉ mở quyền thực thi cho tài khoản Superadmin (BSCKII. Vũ Khương An). Tài khoản bác sĩ nội soi có thể tự đổi mật khẩu trên thanh công cụ và xuất báo cáo nghiên cứu Hồ sơ B / Hồ sơ C.
+          </div>
+
+          <div id="el-superadmin-grid" class="el-admin-grid" hidden>
+            <!-- THẺ 1: KHÔI PHỤC NGUYÊN TỬ HỒ SƠ A (.ENDOLOG.ENC) -->
+            <section class="el-admin-card" aria-labelledby="el-admin-restore-title">
+              <div class="el-admin-card-head">
+                <h3 id="el-admin-restore-title" class="el-admin-card-title">1. Khôi phục kho sao lưu mã hóa (Hồ sơ A)</h3>
+                <p class="el-admin-card-desc">Tự động chụp bản sao lưu an toàn trước khi khôi phục, kiểm định lược đồ nghiêm ngặt và nâng kỷ nguyên kho dữ liệu để chặn ghi đè cũ.</p>
+              </div>
+
+              <div class="el-form-field">
+                <span class="el-form-label">Tệp kho sao lưu mã hóa (.endolog.enc, tối đa 10 MiB)</span>
+                <input id="el-admin-restore-file" type="file" accept=".enc,.json" hidden>
+                <div class="el-admin-file-row">
+                  <button type="button" id="el-btn-pick-restore-file" class="el-btn el-btn--secondary">
+                    <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span>Chọn tệp sao lưu</span>
+                  </button>
+                  <span id="el-admin-restore-filename" class="el-admin-filename">Chưa chọn tệp sao lưu</span>
+                </div>
+              </div>
+
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-admin-restore-passphrase">Khóa mật khẩu giải mã tệp sao lưu</label>
+                <input id="el-admin-restore-passphrase" type="password" minlength="12" maxlength="128" autocomplete="off" class="el-form-input" placeholder="Nhập cụm mật khẩu bảo vệ tệp .endolog.enc">
+              </div>
+
+              <div class="el-form-field">
+                <button type="button" id="el-sw-preserve-users" class="el-check-pill" aria-pressed="true">
+                  <span class="el-check-indicator" aria-hidden="true"></span>
+                  <span>Giữ nguyên bảng tài khoản &amp; mật khẩu hiện hành (khuyến nghị)</span>
+                </button>
+              </div>
+
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-admin-key-policy">Chính sách đối chiếu khóa băm mã hồ sơ bệnh viện</label>
+                <select id="el-admin-key-policy" class="el-form-input"></select>
+              </div>
+
+              <div id="el-admin-restore-feedback" class="el-admin-feedback" role="status" aria-live="polite" hidden></div>
+
+              <div class="el-admin-card-foot">
+                <button type="button" id="el-btn-run-restore" class="el-btn el-btn--danger">
+                  <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                  </svg>
+                  <span>Khôi phục kho dữ liệu nguyên tử</span>
+                </button>
+              </div>
+            </section>
+
+            <!-- THẺ 2: GỘP HỒ SƠ NGƯỜI BỆNH TRÙNG & ĐỐI SOÁT ĐỢT NỘI TRÚ -->
+            <section class="el-admin-card" aria-labelledby="el-admin-merge-title">
+              <div class="el-admin-card-head">
+                <h3 id="el-admin-merge-title" class="el-admin-card-title">2. Gộp hồ sơ người bệnh &amp; đối soát đợt nội trú</h3>
+                <p class="el-admin-card-desc">Gộp người bệnh giữ nguyên từng đợt điều trị riêng biệt; chỉ gộp đợt nội trú khi thực hiện đối soát đợt nội trú độc lập bên dưới.</p>
+              </div>
+
+              <div class="el-field-grid el-field-grid--2">
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-admin-merge-source">Hồ sơ nguồn (chuyển sang đã gộp)</label>
+                  <select id="el-admin-merge-source" class="el-form-input"></select>
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-admin-merge-target">Hồ sơ đích chuẩn (nhận liên kết dọc)</label>
+                  <select id="el-admin-merge-target" class="el-form-input"></select>
+                </div>
+              </div>
+
+              <div class="el-field-grid el-field-grid--2">
+                <button type="button" id="el-sw-merge-demo-confirm" class="el-check-pill" aria-pressed="false">
+                  <span class="el-check-indicator" aria-hidden="true"></span>
+                  <span>Cho phép gộp dù lệch năm sinh hoặc giới tính</span>
+                </button>
+                <button type="button" id="el-sw-merge-mrn-override" class="el-check-pill" aria-pressed="false">
+                  <span class="el-check-indicator" aria-hidden="true"></span>
+                  <span>Cho phép gộp 2 mã hồ sơ bệnh viện khác nhau</span>
+                </button>
+              </div>
+
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-admin-merge-reason">Lý do kiểm toán gộp hồ sơ người bệnh</label>
+                <input id="el-admin-merge-reason" type="text" maxlength="240" class="el-form-input" placeholder="Ví dụ: Bổ sung mã hồ sơ nội trú cho bệnh nhân ngoại trú cũ">
+              </div>
+
+              <div id="el-admin-merge-feedback" class="el-admin-feedback" role="status" aria-live="polite" hidden></div>
+
+              <div class="el-admin-card-foot">
+                <button type="button" id="el-btn-run-patient-merge" class="el-btn el-btn--secondary">Thực hiện gộp hồ sơ người bệnh</button>
+              </div>
+
+              <div class="el-admin-subblock">
+                <div class="el-block-label">Đối soát gộp 2 đợt điều trị nội trú cùng người bệnh</div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-admin-reconcile-patient">Chọn người bệnh có từ 2 đợt nội trú</label>
+                  <select id="el-admin-reconcile-patient" class="el-form-input"></select>
+                </div>
+                <div class="el-field-grid el-field-grid--2">
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-admin-reconcile-src-ep">Đợt nội trú nguồn</label>
+                    <select id="el-admin-reconcile-src-ep" class="el-form-input"></select>
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-admin-reconcile-tgt-ep">Đợt nội trú đích</label>
+                    <select id="el-admin-reconcile-tgt-ep" class="el-form-input"></select>
+                  </div>
+                </div>
+                <div class="el-field-grid el-field-grid--2">
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-admin-reconcile-ercp-offset">Số lần ERCP ngoài sổ đầu đợt</label>
+                    <input id="el-admin-reconcile-ercp-offset" type="number" min="0" max="20" step="1" value="0" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-admin-reconcile-reason">Lý do đối soát đợt nội trú</label>
+                    <input id="el-admin-reconcile-reason" type="text" maxlength="240" class="el-form-input" placeholder="Ví dụ: Chuyển khoa cùng đợt">
+                  </div>
+                </div>
+                <div id="el-admin-reconcile-feedback" class="el-admin-feedback" role="status" aria-live="polite" hidden></div>
+                <div class="el-admin-card-foot">
+                  <button type="button" id="el-btn-run-episode-reconcile" class="el-btn el-btn--secondary">Gộp đợt nội trú &amp; đánh số lại ERCP</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- THẺ 3: QUẢN LÝ TÀI KHOẢN & ĐẶT LẠI MẬT KHẨU ARGON2ID -->
+            <section class="el-admin-card" aria-labelledby="el-admin-users-title">
+              <div class="el-admin-card-head">
+                <h3 id="el-admin-users-title" class="el-admin-card-title">3. Quản lý tài khoản &amp; đặt lại mật khẩu xác thực</h3>
+                <p class="el-admin-card-desc">Đặt lại mật khẩu sẽ nâng phiên khóa xác thực của tài khoản và thu hồi tức thì toàn bộ thẻ phiên JWT cũ của người dùng đó.</p>
+              </div>
+
+              <div id="el-admin-user-list" class="el-admin-list"></div>
+
+              <div class="el-field-grid el-field-grid--2">
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-admin-reset-target">Tài khoản cần đặt lại mật khẩu</label>
+                  <select id="el-admin-reset-target" class="el-form-input"></select>
+                </div>
+                  <div class="el-form-field">
+                  <label class="el-form-label" for="el-admin-reset-password">Mật khẩu mới (tối thiểu 12 ký tự)</label>
+                  <input id="el-admin-reset-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" class="el-form-input" placeholder="Tối thiểu 12 ký tự (Argon2id)">
+                </div>
+              </div>
+
+              <div id="el-admin-user-feedback" class="el-admin-feedback" role="status" aria-live="polite" hidden></div>
+
+              <div class="el-admin-card-foot">
+                <button type="button" id="el-btn-run-reset-password" class="el-btn el-btn--secondary">Đặt lại mật khẩu &amp; thu hồi phiên cũ</button>
+              </div>
+            </section>
+
+            <!-- THẺ 4: DÒNG DÕI KHÔI PHỤC & CẦU NỐI KIỂM TOÁN SHA-256 -->
+            <section class="el-admin-card" aria-labelledby="el-admin-lineage-title">
+              <div class="el-admin-card-head">
+                <h3 id="el-admin-lineage-title" class="el-admin-card-title">4. Dòng dõi khôi phục &amp; cầu nối kiểm toán SHA-256</h3>
+                <p class="el-admin-card-desc">Đối chiếu tính toàn vẹn mã băm của các ảnh chụp an toàn trước khôi phục và theo dõi chuỗi phiên bản tập dữ liệu nghiên cứu Hồ sơ B.</p>
+              </div>
+
+              <div id="el-admin-lineage-list" class="el-admin-list"></div>
+            </section>
           </div>
         </div>
       </section>
@@ -1080,6 +1276,31 @@
     </div>
   </div>
 
-  <script src="/js/app.js?v=0.2.3"></script>
+  <!-- HỘP THOẠI TỰ ĐỔI MẬT KHẨU CÁ NHÂN (THU HỒI PHIÊN KHÁC & CẤP JWT MỚI — G01) -->
+  <div id="el-password-modal-backdrop" class="el-submodal-backdrop" hidden>
+    <div id="el-password-modal" class="el-submodal" role="dialog" aria-modal="true" aria-labelledby="el-password-modal-title">
+      <h3 id="el-password-modal-title" class="el-submodal-title">Đổi mật khẩu xác thực cá nhân</h3>
+      <p class="el-submodal-desc">Sau khi cập nhật mật khẩu chuẩn Argon2id, toàn bộ thẻ phiên trên các trình duyệt khác sẽ bị thu hồi ngay lập tức; phiên hiện tại được cấp thẻ xác thực mới.</p>
+      <div class="el-form-field">
+        <label class="el-form-label" for="el-pwd-current">Mật khẩu hiện tại</label>
+        <input id="el-pwd-current" type="password" autocomplete="current-password" class="el-form-input" placeholder="Nhập mật khẩu đang sử dụng">
+      </div>
+      <div class="el-form-field">
+        <label class="el-form-label" for="el-pwd-new">Mật khẩu mới (tối thiểu 12 ký tự)</label>
+        <input id="el-pwd-new" type="password" minlength="12" maxlength="128" autocomplete="new-password" class="el-form-input" placeholder="Nhập mật khẩu mới tối thiểu 12 ký tự">
+      </div>
+      <div class="el-form-field">
+        <label class="el-form-label" for="el-pwd-confirm">Nhập lại mật khẩu mới</label>
+        <input id="el-pwd-confirm" type="password" minlength="12" maxlength="128" autocomplete="new-password" class="el-form-input" placeholder="Xác nhận lại mật khẩu mới">
+      </div>
+      <div id="el-pwd-feedback" class="el-error-banner" role="alert" hidden></div>
+      <div class="el-submodal-actions">
+        <button type="button" id="el-btn-pwd-close" class="el-btn el-btn--secondary">Hủy</button>
+        <button type="button" id="el-btn-pwd-submit" class="el-btn el-btn--primary">Cập nhật mật khẩu</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js?v=0.3.0"></script>
 </body>
 </html>

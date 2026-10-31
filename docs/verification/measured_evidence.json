@@ -1,7 +1,7 @@
 {
   "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
-  "generated_at_utc": "2026-10-31T11:20:59+00:00",
-  "version": "0.2.3",
+  "generated_at_utc": "2026-10-31T13:31:04+00:00",
+  "version": "0.3.0",
   "overall_status": "PASS",
   "ergonomic_click_budget_proxy": {
     "clicks_negative_col": 3,
@@ -22,7 +22,7 @@
     }
   },
   "touch_target_audit": {
-    "interactive_elements_verified": 779,
+    "interactive_elements_verified": 785,
     "sub_44px_violations": 0
   },
   "wcag_contrast_audit": {
@@ -36,7 +36,7 @@
     "sessionStorage_keys_post_wipe": 0,
     "indexedDB_count": 0,
     "cached_static_urls_count": 14,
-    "api_responses_checked_no_store": 64,
+    "api_responses_checked_no_store": 86,
     "open_drawer_idle_wipe": {
       "drawerHidden": true,
       "fullNameVal": "",
@@ -52,7 +52,7 @@
     "pageerror_count": 0,
     "http_5xx_count": 0,
     "audit_chain_valid": true,
-    "audit_entries_verified": 18,
+    "audit_entries_verified": 23,
     "drawer_screenshots_captured": [
       "bieu_mau_ca_soi_1440_light.png",
       "bieu_mau_ercp_1440_light.png",

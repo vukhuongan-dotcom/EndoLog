@@ -1,7 +1,7 @@
 {
   "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
-  "generated_at_utc": "2026-10-31T10:37:06+00:00",
-  "version": "0.2.2",
+  "generated_at_utc": "2026-10-31T11:20:59+00:00",
+  "version": "0.2.3",
   "overall_status": "PASS",
   "ergonomic_click_budget_proxy": {
     "clicks_negative_col": 3,
@@ -15,7 +15,7 @@
   },
   "viewport_and_mobile_budget": {
     "viewport_combinations_checked": 80,
-    "mobile_390_first_case_top_y_px": 395.1,
+    "mobile_390_first_case_top_y_px": 396.3,
     "negative_probe_640px": {
       "detected": true,
       "restored": true

@@ -1,13 +1,13 @@
-/* EndoLog Service Worker v0.2.2 — Zero-PHI Cache Allowlist (NetworkOnly for all /api/*) */
-const CACHE_NAME = 'endolog-static-v0.2.2';
+/* EndoLog Service Worker v0.2.3 — Zero-PHI Cache Allowlist (NetworkOnly for all /api/*) */
+const CACHE_NAME = 'endolog-static-v0.2.3';
 const STATIC_ALLOWLIST = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/css/fonts.css?v=0.2.2',
-  '/css/tokens.css?v=0.2.2',
-  '/css/app.css?v=0.2.2',
-  '/js/app.js?v=0.2.2',
+  '/css/fonts.css?v=0.2.3',
+  '/css/tokens.css?v=0.2.3',
+  '/css/app.css?v=0.2.3',
+  '/js/app.js?v=0.2.3',
   '/icons/favicon.svg',
   '/fonts/noto-sans-latin-var.woff2',
   '/fonts/noto-sans-vietnamese-var.woff2',

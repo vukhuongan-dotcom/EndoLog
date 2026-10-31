@@ -1,0 +1,3 @@
+Nguon chuan: Design System "EndoLog" v1 (31/10/2026)
+Link (can dang nhap claude.ai cua BS. An): https://claude.ai/artifact/FDfuaKSAeLBwSv32zy4GrW
+Goi nay la ban sao day du cac tep cua Design System: README.md, tokens.json, tokens.css, components/*, assets/Logos/*.svg, assets/Icons/*.svg, brand-board.png

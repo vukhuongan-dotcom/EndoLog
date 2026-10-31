@@ -524,12 +524,10 @@
     applyTheme(saved, false);
   }
 
+  /* StatusPill icons chuẩn Design System v1: urgent + alert · pending + clock · due + calendar · ned + check · neutral + clock (24/stroke 2/round) */
   function statusIconSvg(tone) {
     if (tone === 'urgent') {
       return '<svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
-    }
-    if (tone === 'pending') {
-      return '<svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
     }
     if (tone === 'due') {
       return '<svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -537,7 +535,8 @@
     if (tone === 'ned') {
       return '<svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
     }
-    return '<svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+    /* pending & neutral đều dùng biểu tượng clock theo Design System v1 */
+    return '<svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
   }
 
   /* Chip thủ thuật: nền -tint, chữ -text, chấm 7 px màu --proc-*, LUÔN ghi mã EGD/COL/ERCP */
@@ -634,7 +633,7 @@
 
   function phasePillIconSvg(stateKey) {
     if (stateKey === 'done') {
-      return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+      return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
     }
     if (stateKey === 'pending') {
       return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14"/><path d="M5 21h14"/><path d="M17 3v4.5a5 5 0 0 1-2.2 4.16L12 13.5l-2.8-1.84A5 5 0 0 1 7 7.5V3"/><path d="M7 21v-4.5a5 5 0 0 1 2.2-4.16L12 10.5l2.8 1.84A5 5 0 0 1 17 16.5V21"/></svg>';
@@ -649,7 +648,7 @@
   }
 
   function moreDotsIconSvg() {
-    return '<svg class="el-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>';
+    return '<svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
   }
 
   /* Tính toán tiến độ theo dõi dọc 4 pha (P1..P4) đồng bộ SurgiLog Pro cho mọi ca EGD / COL / ERCP */
@@ -810,23 +809,25 @@
       (contextView === 'surveillance' || prog.p4.state === 'active')
     );
 
-    let contextualPrimaryBtnHtml = '';
+    /* Mỗi màn hình chỉ tối đa 1 nút chính (el-btn--primary là #el-btn-new-case trên Nhật ký ca soi);
+     * các tác vụ trên thẻ dùng el-btn--secondary (viền border-strong) và el-btn--ghost (Xem chi tiết) theo Design System v1 */
+    let contextualActionBtnHtml = '';
     if (contextView === 'surveillance') {
       if (isPendingGpb) {
-        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB</button>';
+        contextualActionBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--secondary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập kết quả GPB</button>';
       } else if (canCreateLinked) {
-        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-link-surv" data-create-linked="' + cid + '">Tạo ca soi lại</button>';
+        contextualActionBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--secondary action-btn-link-surv" data-create-linked="' + cid + '">Tạo ca soi lại</button>';
       } else if (isPending30d) {
-        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi 30 ngày</button>';
+        contextualActionBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--secondary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi 30 ngày</button>';
       }
     } else if (isP2Pending) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p2">Hoàn tất thủ thuật</button>';
+      contextualActionBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--secondary action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p2">Hoàn tất thủ thuật</button>';
     } else if (isPendingGpb) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB</button>';
+      contextualActionBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--secondary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập kết quả GPB</button>';
     } else if (isPending30d) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi 30 ngày</button>';
+      contextualActionBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--secondary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi 30 ngày</button>';
     } else if (canCreateLinked) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-link-surv" data-create-linked="' + cid + '">Tạo ca soi lại</button>';
+      contextualActionBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--secondary action-btn-link-surv" data-create-linked="' + cid + '">Tạo ca soi lại</button>';
     }
 
     const allowLinkInMenu = Boolean(!surv.fulfilled_by_case_id && !isPendingGpb && surv.category !== 'SURGICAL_MDT_CONSULT_ALERT');
@@ -834,7 +835,7 @@
 
     const overflowMenuHtml = (
       '<div class="el-action-menu-wrap">' +
-      '<button type="button" class="el-btn el-btn--compact el-btn-more" data-case-more="' + cid + '" aria-haspopup="menu" aria-expanded="false" aria-label="Mở trình đơn thao tác nhanh 4 pha" title="Thao tác khác">' +
+      '<button type="button" class="el-btn el-btn--compact el-btn--secondary el-btn-more" data-case-more="' + cid + '" aria-haspopup="menu" aria-expanded="false" aria-label="Mở trình đơn thao tác nhanh 4 pha" title="Thao tác khác">' +
       moreDotsIconSvg() +
       '</button>' +
       '<div class="el-action-menu-dropdown" role="menu" hidden>' +
@@ -857,8 +858,8 @@
       '<div class="el-card-progression-bar">' +
       renderPhasePillTrackHtml(c.case_id, prog) +
       '<div class="el-action-buttons-row">' +
-      contextualPrimaryBtnHtml +
-      '<button type="button" class="el-btn el-btn--compact action-btn-detail" data-case-detail="' + cid + '">Chi tiết</button>' +
+      contextualActionBtnHtml +
+      '<button type="button" class="el-btn el-btn--compact el-btn--ghost action-btn-detail" data-case-detail="' + cid + '">Xem chi tiết</button>' +
       overflowMenuHtml +
       '</div>' +
       '</div>'
@@ -911,7 +912,7 @@
       const badgeObj = c.clinical_badge || { tone: 'neutral', label: 'Đang cập nhật' };
       const settingLabel = c.care_setting === 'INPATIENT' ? 'Nội trú' : 'Ngoại trú';
       const sexLabel = pat.sex === 'F' ? 'Nữ' : (pat.sex === 'O' ? 'Khác' : 'Nam');
-      const mrnPart = pat.hospital_mrn_masked ? (' · Mã HS: ' + pat.hospital_mrn_masked) : '';
+      const mrnPart = pat.hospital_mrn_masked ? (' · ' + pat.hospital_mrn_masked) : '';
       const survSummary = surv.category === 'SURGICAL_MDT_CONSULT_ALERT'
         ? ('Chuyển hội chẩn ' + (surv.surgical_consult_target_dept || 'Ngoại khoa'))
         : ('Hẹn soi lại: ' + (surv.recommended_interval_label || 'Theo chỉ định') + (surv.due_date ? (' (' + formatViDate(surv.due_date) + ')') : ''));
@@ -935,12 +936,12 @@
         '<p class="el-field-secondary">' + escapeHtml(formatIndicationVi(c.indication_detail, c.indication)) + '</p>' +
         '</div>' +
         '<div class="el-case-col">' +
-        '<p class="el-field-kicker">Thông số kỹ thuật &amp; tổn thương đại diện</p>' +
+        '<p class="el-field-kicker">Thủ thuật &amp; tổn thương đại diện</p>' +
         '<p class="el-field-primary">' + escapeHtml(hl.title) + '</p>' +
         '<p class="el-field-secondary">' + escapeHtml(hl.detail) + '</p>' +
         '</div>' +
         '<div class="el-case-col">' +
-        '<p class="el-field-kicker">Giải phẫu bệnh &amp; hướng xử trí</p>' +
+        '<p class="el-field-kicker">GPB &amp; hướng xử trí</p>' +
         '<p class="el-field-primary">' + escapeHtml(survSummary) + '</p>' +
         '<p class="el-field-muted">' + escapeHtml(guidelineShort) + (surv.is_divergent_guideline ? (' · Đối chiếu ' + escapeHtml(refShort) + ': ' + escapeHtml(surv.reference_interval_label)) : '') + '</p>' +
         '</div>' +
@@ -966,6 +967,7 @@
       const pat = r.patient || fullCase.patient || {};
       const urg = r.urgency || { tone: 'neutral', label: 'Chưa đến hạn' };
       const sexLabel = pat.sex === 'F' ? 'Nữ' : (pat.sex === 'O' ? 'Khác' : 'Nam');
+      const mrnPart = pat.hospital_mrn_masked ? (' · ' + pat.hospital_mrn_masked) : '';
       const primaryPlan = surv.category === 'SURGICAL_MDT_CONSULT_ALERT'
         ? ('Hội chẩn chuyên khoa: ' + (surv.surgical_consult_target_dept || 'Ngoại khoa'))
         : ('Mốc hẹn soi lại: ' + (surv.recommended_interval_label || 'Theo chỉ định') + (surv.due_date ? (' · Ngày dự kiến ' + formatViDate(surv.due_date)) : ''));
@@ -995,8 +997,8 @@
         '</div>' +
         '<div class="el-case-grid">' +
         '<div class="el-case-col">' +
-        '<p class="el-field-kicker">Người bệnh &amp; bệnh cảnh gốc</p>' +
-        '<p class="el-field-primary">' + escapeHtml(pat.privacy_initials || '') + ' · ' + escapeHtml(pat.age) + ' tuổi (' + escapeHtml(sexLabel) + ')</p>' +
+        '<p class="el-field-kicker">Người bệnh &amp; chỉ định</p>' +
+        '<p class="el-field-primary">' + escapeHtml(pat.privacy_initials || '') + ' · ' + escapeHtml(pat.age) + ' tuổi (' + escapeHtml(sexLabel) + ')' + escapeHtml(mrnPart) + '</p>' +
         '<p class="el-field-secondary">' + escapeHtml(formatIndicationVi(r.indication_detail || fullCase.indication_detail, fullCase.indication || '')) + '</p>' +
         '</div>' +
         '<div class="el-case-col">' +
@@ -1217,6 +1219,11 @@
     document.querySelectorAll('[data-nav-target]').forEach((btn) => {
       const active = btn.getAttribute('data-nav-target') === target;
       btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      if (active) {
+        btn.setAttribute('aria-current', 'page');
+      } else {
+        btn.removeAttribute('aria-current');
+      }
     });
   }
 
@@ -2533,14 +2540,14 @@
     const badgeObj = c.clinical_badge || { tone: 'neutral', label: 'Đang cập nhật' };
     const settingLabel = c.care_setting === 'INPATIENT' ? 'Nội trú' : 'Ngoại trú';
     const sexLabel = pat.sex === 'F' ? 'Nữ' : (pat.sex === 'O' ? 'Khác' : 'Nam');
-    const mrnPart = pat.hospital_mrn_masked ? (' · Mã HS: ' + pat.hospital_mrn_masked) : '';
+    const mrnPart = pat.hospital_mrn_masked ? (' · ' + pat.hospital_mrn_masked) : '';
 
     badgesEl.innerHTML = (
       renderProcChip(c.track) +
       '<span class="el-case-code">' + escapeHtml(c.case_code || '') + '</span>' +
       renderStatusBadge(badgeObj.tone, humanizeClinicalBadgeLabelVi(badgeObj.label))
     );
-    titleEl.textContent = (pat.privacy_initials || '') + ' · ' + (pat.age != null ? (pat.age + ' tuổi') : '') + ' (' + sexLabel + ') — Diễn tiến theo dõi 4 pha';
+    titleEl.textContent = (pat.privacy_initials || '') + ' · ' + (pat.age != null ? (pat.age + ' tuổi') : '') + ' (' + sexLabel + ')' + mrnPart + ' — Diễn tiến theo dõi 4 pha';
 
     const fu30Label = FOLLOWUP_30D_LABELS_VI[c.followup_30d_status] || 'Đang trong cửa sổ theo dõi 14–30 ngày';
     const pathStatusLabel = PATH_STATUS_LABELS_VI[c.pathology_completion_status] || 'Không sinh thiết / không áp dụng';

@@ -1,0 +1,97 @@
+/* EndoLog — generated from tokens.json */
+:root, [data-theme="light"] {
+  --bg-main: #F4F7FC;
+  --bg-card: #FFFFFF;
+  --bg-sunken: #EBEEF7;
+  --text-heading: #192135;
+  --text-main: #26292F;
+  --text-muted: #60636A;
+  --primary: #475985;
+  --primary-fill: #475985;
+  --on-primary: #FFFFFF;
+  --primary-soft: #E2EBFF;
+  --border: #D8DBE0;
+  --border-strong: #83868E;
+  --accent-light: #90D8E9;
+  --focus-ring: #475985;
+  --proc-egd: #995EB2;
+  --proc-egd-text: #6B3A7F;
+  --proc-egd-tint: #F7EBFC;
+  --proc-col: #008F90;
+  --proc-col-text: #006263;
+  --proc-col-tint: #DEF6F5;
+  --proc-ercp: #987600;
+  --proc-ercp-text: #684F00;
+  --proc-ercp-tint: #F6F0DE;
+  --clinical-ned: #00692D;
+  --clinical-due: #0054A7;
+  --clinical-pending: #844200;
+  --clinical-urgent: #A1111D;
+  --clinical-neutral: #50585B;
+  --chart-line: var(--primary-fill);
+  --chart-threshold: var(--clinical-urgent);
+  --chart-grid: var(--border);
+}
+[data-theme="dark"] {
+  --bg-main: #0D0F15;
+  --bg-card: #15181F;
+  --bg-sunken: #11141A;
+  --text-heading: #FFFFFF;
+  --text-main: #E5E8ED;
+  --text-muted: #ADB1B9;
+  --primary: #B5C4E6;
+  --primary-fill: #576B98;
+  --on-primary: #FFFFFF;
+  --primary-soft: #222D47;
+  --border: #30333A;
+  --border-strong: #6E7279;
+  --accent-light: #8FD0E1;
+  --focus-ring: #B5C4E6;
+  --proc-egd: #C18DD8;
+  --proc-egd-text: #DFBBEF;
+  --proc-egd-tint: #2F1F36;
+  --proc-col: #16BBBC;
+  --proc-col-text: #8ADBDB;
+  --proc-col-tint: #012D2D;
+  --proc-ercp: #C0A241;
+  --proc-ercp-text: #DDCA8E;
+  --proc-ercp-tint: #2E2609;
+  --clinical-ned: #8ED69D;
+  --clinical-due: #99C6FF;
+  --clinical-pending: #FEAD76;
+  --clinical-urgent: #FFA8A0;
+  --clinical-neutral: #B3C0C4;
+  --chart-line: var(--primary);
+  --chart-threshold: var(--clinical-urgent);
+  --chart-grid: var(--border);
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --touch-min: 44px;
+  --mark-mobile: 28px;
+  --mark-desktop: 40px;
+  --proc-dot: 7px;
+  --font-display: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: "Noto Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+.display { font-family: var(--font-display); font-size: 36px; line-height: 40px; font-weight: 800; letter-spacing: -0.01em; }
+.title { font-family: var(--font-display); font-size: 28px; line-height: 34px; font-weight: 700; }
+.kpi { font-family: var(--font-display); font-size: 28px; line-height: 32px; font-weight: 800; }
+.heading { font-family: var(--font-display); font-size: 22px; line-height: 28px; font-weight: 700; }
+.subheading { font-family: var(--font-display); font-size: 18px; line-height: 24px; font-weight: 700; }
+.label-lg { font-family: var(--font-display); font-size: 15px; line-height: 20px; font-weight: 700; }
+.body-lg { font-family: var(--font-sans); font-size: 16px; line-height: 24px; font-weight: 400; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 400; }
+.ui { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 600; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.06em; }
+.hash { font-family: var(--font-mono); font-size: 12px; line-height: 18px; font-weight: 400; }

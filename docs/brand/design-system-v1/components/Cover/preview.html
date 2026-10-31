@@ -1,0 +1,38 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Cover</title>
+<style>
+html,body{margin:0;background:var(--bg-main)}
+.cv{position:relative;width:960px;height:288px;overflow:hidden;background:var(--bg-main)}
+.cv svg{position:absolute;inset:0}
+.ink{fill:var(--text-heading)}.brand{fill:var(--primary-fill)}.soft{fill:var(--primary-soft)}.light{fill:var(--accent-light)}
+.egd{fill:var(--proc-egd)}.col{fill:var(--proc-col)}.ercp{fill:var(--proc-ercp)}
+.ring{fill:none;stroke:var(--accent-light);stroke-width:32;stroke-linecap:round}
+.r14{rx:var(--radius-lg)}
+.t{position:absolute;left:48px;bottom:44px;max-width:440px}
+.n{font:800 96px/.92 var(--font-display);color:var(--text-heading);letter-spacing:-.02em;margin:0}
+.n span{color:var(--primary)}
+.g{font:400 14px/20px var(--font-sans);color:var(--text-muted);margin-top:16px}
+</style></head>
+<body>
+<div class="cv">
+<svg viewBox="0 0 960 288" width="960" height="288" aria-hidden="true">
+<!-- blocks: brand(primary-fill) slab 288×288 · ink(text-heading) 160×128 · soft(primary-soft) 160×160 · proc-egd/col/ercp 3 bands 48 tall
+     arrangement: one tall slab bleeding off top/right with satellites to its left
+     pattern: literal motif (lens) — the open lumen ring of the mark, built as arcs in accent-light cut through the slab; EndoLog's mark is a scope's light ring
+     steps: space-6 24, space-8 32 gaps; radius-lg 14 on blocks; ring stroke 32 = space-8, mark geometry ×4.95 -->
+<rect class="soft r14" x="480" y="128" width="160" height="160"/>
+<rect class="ink r14" x="512" y="-14" width="128" height="128"/>
+<rect class="brand r14" x="672" y="-14" width="302" height="316"/>
+<path class="ring" d="M879.7 77.2 A104 104 0 1 0 879.7 210.8"/>
+<path class="ring" d="M741 144 H830"/>
+<circle class="light" cx="889" cy="144" r="22"/>
+<rect class="egd" x="480" y="98" width="24" height="24" rx="6"/>
+<rect class="col" x="544" y="160" width="96" height="24" rx="6"/>
+<rect class="ercp" x="544" y="216" width="64" height="24" rx="6"/>
+</svg>
+<div class="t"><p class="n">Endo<span>Log</span></p><div class="g">Hệ thống sổ bộ lâm sàng &amp; đánh giá chất lượng nội soi tiêu hoá</div></div>
+</div>
+</body>
+</html>

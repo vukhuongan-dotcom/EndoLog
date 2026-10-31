@@ -1,7 +1,7 @@
 {
   "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
-  "generated_at_utc": "2026-10-31T10:37:06+00:00",
-  "version": "0.2.2",
+  "generated_at_utc": "2026-10-31T11:20:59+00:00",
+  "version": "0.2.3",
   "overall_status": "PASS",
   "gates_passed": 8,
   "gates_total": 8,
@@ -14,7 +14,7 @@
       "metrics": {
         "exit_code": 0,
         "passed_tests": 25,
-        "duration_sec": 3.42
+        "duration_sec": 4.41
       }
     },
     "GATE_1_SYNTAX_BRAND_AND_ENUM_LOCK": {
@@ -24,8 +24,8 @@
       "errors": [],
       "metrics": {
         "python_files_compiled": 20,
-        "static_files_scanned": 8,
-        "tokens_css_git_diff_bytes": 0,
+        "static_files_scanned": 13,
+        "tokens_css_ds_v1_color_tokens_matched": 56,
         "dom_upper_snake_hits": 0
       }
     },
@@ -36,7 +36,7 @@
       "errors": [],
       "metrics": {
         "viewport_combinations_checked": 80,
-        "mobile_390_first_case_top_y_px": 395.1,
+        "mobile_390_first_case_top_y_px": 396.3,
         "negative_probe_640px": {
           "detected": true,
           "restored": true

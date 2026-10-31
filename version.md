@@ -5,6 +5,15 @@ Mọi thay đổi đáng chú ý của dự án **EndoLog** (*Hệ Thống Sổ 
 Định dạng tuân thủ chuẩn [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) và quy tắc đánh số phiên bản theo [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) (`MAJOR.MINOR.PATCH`).
 Các nhóm phân loại hợp lệ: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.2.3] - 2026-10-31
+
+### Changed
+- Đồng bộ toàn diện **EndoLog `v0.2.3`** với **Bộ nhận diện chính thức Design System v1 (`31/10/2026`, BSCKII. Vũ Khương An chốt)**:
+  - Lưu trữ nguyên vẹn gói nguồn chuẩn chỉ đọc tại `docs/brand/design-system-v1/` (`42` tệp khớp 100% SHA-256 tệp nén gốc) và cập nhật `docs/brand/BRAND.md` với dòng đầu `"Nguồn chuẩn: Design System EndoLog v1 (31/10/2026), BSCKII. Vũ Khương An chốt."` kèm sao chép nguyên câu 3 mục `Nguyên tắc`, `Logo`, `Giọng văn`.
+  - Bổ sung đủ 7 tệp SVG biểu trưng vào `docs/brand/logo/` (`endolog-mark-small.svg`, `endolog-mark-mono.svg`, `endolog-icon-dark.svg` chỉ lưu tại `docs/` do W3C Web App Manifest chuẩn chưa hỗ trợ chuyển biểu tượng sáng/tối theo `color_scheme`) và 6 tệp SVG vào `src/endolog/static/icons/`.
+  - Bổ sung các biến kích thước & khoảng cách chuẩn vào `src/endolog/static/css/tokens.css` (`--touch-min: 44px`, `--mark-mobile: 28px`, `--mark-desktop: 40px`, `--proc-dot: 7px`, `--space-1..8`: `4/8/12/16/24/32px`, `--radius-pill: 999px`) trong khi bảo toàn 100% giá trị 62 biến màu (`62/62` cặp tương phản WCAG AA đạt).
+  - Tinh chỉnh 6 thành phần giao diện (`Button`, `NavTab`, `ProcedureChip`, `StatusPill`, `KpiTile`, `CaseCard`) khớp đặc tả Design System v1 và giữ nguyên bộ biểu tượng **Feather / Lucide** nội tuyến (`24×24`, `stroke 2`, `round`) ([FEAT-009]).
+
 ## [0.2.2] - 2026-10-31
 
 ### Changed

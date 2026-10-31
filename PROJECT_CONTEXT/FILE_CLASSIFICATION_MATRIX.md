@@ -1,6 +1,6 @@
 # BẢNG MA TRẬN PHÂN LOẠI TỆP TIN DỰ ÁN (FILE CLASSIFICATION MATRIX)
 **Dự án:** EndoLog (`endolog`) — Sổ Bộ Lâm Sàng & Đánh Giá Chất Lượng Nội Soi Tiêu Hóa (Bệnh viện Bình Dân)  
-**Phiên bản:** 1.4 (Gate B — Phase 1–5 & SurgiLog 4-Phase Progression · v0.2.2)  
+**Phiên bản:** 1.5 (Gate B — Phase 1–5, SurgiLog 4-Phase Progression & Design System EndoLog v1 Sync · v0.2.3)  
 **Tiêu chuẩn tham khảo:** ISO 15489-1:2016 Records Management (§8.3 Business Classification System & §9.4 Classification and Indexing)  
 **Căn cứ pháp lý tham chiếu:** Luật Khám bệnh, chữa bệnh số 15/2023/QH15, Luật Bảo vệ Dữ liệu Cá nhân số 91/2025/QH15, Nghị định số 356/2025/NĐ-CP
 
@@ -11,7 +11,7 @@
 | Mã Nhóm | Phân Loại Nghiệp Vụ | Định Dạng Cho Phép | Thư Mục Bắt Buộc | Điểm Đến Lưu Trữ & Chính Sách Git | Mức Độ Bảo Mật & Quyền Hạn |
 |:---:|---|---|---|---|:---:|
 | **CLS-01** | **Mã nguồn Backend, Giao diện PWA (`src/endolog/static/`), Công cụ kiểm toán (`tools/`) & Scripts** | `.py`, `.js`, `.html`, `.css`, `.json`, `.sh`, `.svg`, `.png`, `.woff2` | `src/`, `scripts/`, `tools/`, `tests/` | `CODE_REPOSITORY` — Git Versioned (chỉ chứa icon PWA tự host, 0 ảnh lâm sàng) | Nội bộ (Internal) |
-| **CLS-02** | **Đặc tả, Kiến trúc & Bộ nhận diện thương hiệu (`docs/brand/`)** | `.md`, `.json`, `.yaml`, `.mmd`, `.svg`, `.png`, `.txt`, `.py` | `PROJECT_CONTEXT/`, `docs/` | `CODE_REPOSITORY` — Git Versioned (SSoT Brain & Brand Identity v1) | Nội bộ (Internal) |
+| **CLS-02** | **Đặc tả, Kiến trúc & Bộ nhận diện thương hiệu (`docs/brand/`, gồm gói chuẩn chỉ đọc `design-system-v1/`)** | `.md`, `.json`, `.yaml`, `.mmd`, `.svg`, `.png`, `.txt`, `.py`, `.html`, `.css` | `PROJECT_CONTEXT/`, `docs/` | `CODE_REPOSITORY` — Git Versioned (SSoT Brain & Brand Identity Design System v1) | Nội bộ (Internal) |
 | **CLS-03** | **Quy tắc nội bộ dự án** | `AGENTS.md` | Thư mục gốc (`project_root/`) | `CODE_REPOSITORY` — Git Versioned (Tự nạp tự động) | Nội bộ (Internal) |
 | **CLS-04** | **Dữ liệu lâm sàng nội soi (Raw PHI — Không lưu ảnh)** | `.json` | `data/`, `data_real_clinical/`, `data_synthetic_dev/`, `data_backups/` | `LOCAL_SANDBOX` — **BẮT BUỘC nằm trong `.gitignore`**. Cấm commit Git/Git LFS hay đẩy lên Cloud công cộng. | **Tuyệt mật (Strict Zero-PHI)** |
 | **CLS-05** | **Dữ liệu nghiên cứu giả danh hóa dọc (Profile B) & Thống kê gộp (Profile C)** | `.csv`, `.xlsx`, `.json` | `data/exports_research/` | **Mặc định `LOCAL_SANDBOX`** (nằm trong `.gitignore`). Chỉ xuất theo hợp đồng EndoLog Export Contract v1.0. | Hạn chế (Restricted) |

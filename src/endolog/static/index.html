@@ -8,9 +8,9 @@
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/css/fonts.css?v=0.2.2">
-  <link rel="stylesheet" href="/css/tokens.css?v=0.2.2">
-  <link rel="stylesheet" href="/css/app.css?v=0.2.2">
+  <link rel="stylesheet" href="/css/fonts.css?v=0.2.3">
+  <link rel="stylesheet" href="/css/tokens.css?v=0.2.3">
+  <link rel="stylesheet" href="/css/app.css?v=0.2.3">
 </head>
 <body>
   <!-- Màn hình đăng nhập (Zero-Image, tên đầy đủ tiếng Việt) -->
@@ -19,7 +19,7 @@
       <div class="el-login-brand">
         <svg class="el-brand-mark el-brand-mark--login" viewBox="0 0 64 64" fill="none" aria-hidden="true">
           <path d="M48.09 18.5A21 21 0 1 0 48.09 45.5" fill="none" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
-          <path d="M20 32H38" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
+          <path d="M20 32H38" fill="none" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
           <circle class="el-brand-halo" cx="50" cy="32" r="8.5" fill="var(--accent-light)" opacity=".28"/>
           <circle cx="50" cy="32" r="4.5" fill="var(--accent-light)"/>
         </svg>
@@ -48,7 +48,7 @@
             </svg>
             <span>Đăng nhập sổ bộ</span>
           </button>
-          <button type="button" id="el-btn-dev-bypass" class="el-btn" hidden>
+          <button type="button" id="el-btn-dev-bypass" class="el-btn el-btn--secondary" hidden>
             <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
               <polyline points="10 17 15 12 10 7"/>
@@ -70,7 +70,7 @@
           <div class="el-brand-cluster">
             <svg class="el-brand-mark el-brand-mark--header" viewBox="0 0 64 64" fill="none" aria-hidden="true">
               <path d="M48.09 18.5A21 21 0 1 0 48.09 45.5" fill="none" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
-              <path d="M20 32H38" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
+              <path d="M20 32H38" fill="none" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
               <circle class="el-brand-halo" cx="50" cy="32" r="8.5" fill="var(--accent-light)" opacity=".28"/>
               <circle cx="50" cy="32" r="4.5" fill="var(--accent-light)"/>
             </svg>
@@ -94,7 +94,7 @@
               </div>
             </div>
 
-            <button type="button" id="el-theme-toggle" class="el-btn el-btn--icon" aria-label="Chuyển chế độ giao diện sáng hoặc tối">
+            <button type="button" id="el-theme-toggle" class="el-btn el-btn--secondary el-btn--icon" aria-label="Chuyển chế độ giao diện sáng hoặc tối">
               <svg id="el-icon-moon" class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
               </svg>
@@ -112,7 +112,7 @@
               <span id="el-theme-label" class="el-btn-label-desktop">Nền tối</span>
             </button>
 
-            <button type="button" id="el-btn-logout" class="el-btn el-btn--icon" aria-label="Đăng xuất phiên làm việc">
+            <button type="button" id="el-btn-logout" class="el-btn el-btn--secondary el-btn--icon" aria-label="Đăng xuất phiên làm việc">
               <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                 <polyline points="16 17 21 12 16 7"/>
@@ -123,9 +123,9 @@
           </div>
         </div>
 
-        <!-- Thanh tab máy tính (ĐỦ 3 dấu khi chọn: chữ --primary 600 + gạch 2 px --primary + chấm --accent-light) -->
+        <!-- Thanh tab máy tính (ĐỦ 3 dấu khi chọn: chữ --primary 600 + gạch 2 px --primary + chấm 5 px --accent-light, kèm aria-current="page") -->
         <nav class="el-desktop-tabs" role="tablist" aria-label="Điều hướng phân hệ sổ bộ">
-          <button type="button" role="tab" class="el-tab-btn" data-nav-target="cases" aria-selected="true">
+          <button type="button" role="tab" class="el-tab-btn" data-nav-target="cases" aria-selected="true" aria-current="page">
             <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
@@ -182,7 +182,7 @@
             <button type="button" class="el-filter-pill" data-track-filter="ALL" aria-pressed="true">Tất cả</button>
             <button type="button" class="el-filter-pill" data-track-filter="EGD" aria-pressed="false">EGD · Dạ dày</button>
             <button type="button" class="el-filter-pill" data-track-filter="COL" aria-pressed="false">COL · Đại trực tràng</button>
-            <button type="button" class="el-filter-pill" data-track-filter="ERCP" aria-pressed="false">ERCP · Mật tụy</button>
+            <button type="button" class="el-filter-pill" data-track-filter="ERCP" aria-pressed="false">ERCP · Mật tụy ngược dòng</button>
           </div>
           <input id="el-case-search" type="search" class="el-search-input" placeholder="Tìm mã ca, viết tắt tên hoặc vị trí..." aria-label="Tìm kiếm trong nhật ký ca soi">
         </div>
@@ -195,7 +195,7 @@
             <span class="el-export-desc">Hồ sơ B giả danh dọc (CSV/XLSX) · Hồ sơ C tổng hợp ẩn ô nhỏ &lt; 5 · Hồ sơ A sao lưu mã hóa (.enc)</span>
           </div>
           <div class="el-export-actions">
-            <button type="button" id="el-btn-export-csv" class="el-btn">
+            <button type="button" id="el-btn-export-csv" class="el-btn el-btn--secondary">
               <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
@@ -203,7 +203,7 @@
               </svg>
               <span>Xuất bảng nghiên cứu (hồ sơ B)</span>
             </button>
-            <button type="button" id="el-btn-export-xlsx" class="el-btn">
+            <button type="button" id="el-btn-export-xlsx" class="el-btn el-btn--secondary">
               <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="3" y="3" width="18" height="18" rx="2"/>
                 <line x1="3" y1="9" x2="21" y2="9"/>
@@ -211,7 +211,7 @@
               </svg>
               <span>Hồ sơ B (XLSX)</span>
             </button>
-            <button type="button" id="el-btn-export-profile-c" class="el-btn">
+            <button type="button" id="el-btn-export-profile-c" class="el-btn el-btn--secondary">
               <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="18" y1="20" x2="18" y2="10"/>
                 <line x1="12" y1="20" x2="12" y2="4"/>
@@ -219,7 +219,7 @@
               </svg>
               <span>Báo cáo tổng hợp (hồ sơ C)</span>
             </button>
-            <button type="button" id="el-btn-open-vault-backup" class="el-btn">
+            <button type="button" id="el-btn-open-vault-backup" class="el-btn el-btn--secondary">
               <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="3" y="11" width="18" height="11" rx="2"/>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -301,7 +301,7 @@
               <select id="el-setting-cusum-preset" class="el-form-input"></select>
             </div>
             <div class="el-form-field el-settings-btn-wrap">
-              <button type="button" id="el-btn-save-settings" class="el-btn">
+              <button type="button" id="el-btn-save-settings" class="el-btn el-btn--secondary">
                 <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                   <polyline points="17 21 17 13 7 13 7 21"/>
@@ -318,7 +318,7 @@
     <!-- Thanh điều hướng dưới cùng trên điện thoại -->
     <nav class="el-bottom-nav" role="tablist" aria-label="Điều hướng di động">
       <div class="el-bottom-nav-grid">
-        <button type="button" role="tab" class="el-bottom-btn" data-nav-target="cases" aria-selected="true">
+        <button type="button" role="tab" class="el-bottom-btn" data-nav-target="cases" aria-selected="true" aria-current="page">
           <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -1002,7 +1002,7 @@
         </section>
 
         <div class="el-drawer-foot">
-          <button type="button" id="el-btn-cancel-drawer" class="el-btn">Đóng</button>
+          <button type="button" id="el-btn-cancel-drawer" class="el-btn el-btn--secondary">Đóng</button>
           <button type="submit" id="el-btn-save-case" class="el-btn el-btn--primary">
             <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -1035,8 +1035,8 @@
       <p class="el-submodal-desc">Hệ thống không tự động gộp ngầm khi ca ngoại trú chưa có mã hồ sơ bệnh viện. Vui lòng chọn cách xử lý:</p>
       <div id="el-dup-candidates" class="el-dup-list"></div>
       <div class="el-submodal-actions">
-        <button type="button" id="el-btn-dup-new-patient" class="el-btn">Xác nhận là người bệnh mới khác người</button>
-        <button type="button" id="el-btn-dup-cancel" class="el-btn">Quay lại kiểm tra</button>
+        <button type="button" id="el-btn-dup-new-patient" class="el-btn el-btn--secondary">Xác nhận là người bệnh mới khác người</button>
+        <button type="button" id="el-btn-dup-cancel" class="el-btn el-btn--secondary">Quay lại kiểm tra</button>
       </div>
     </div>
   </div>
@@ -1052,7 +1052,7 @@
       </div>
       <div id="el-vault-error" class="el-error-banner" role="alert" hidden></div>
       <div class="el-submodal-actions">
-        <button type="button" id="el-btn-vault-close" class="el-btn">Đóng</button>
+        <button type="button" id="el-btn-vault-close" class="el-btn el-btn--secondary">Đóng</button>
         <button type="button" id="el-btn-vault-download" class="el-btn el-btn--primary">Tải tệp sao lưu mã hóa</button>
       </div>
     </div>
@@ -1066,7 +1066,7 @@
           <div id="el-detail-modal-badges" class="el-case-id-group"></div>
           <h3 id="el-detail-modal-title" class="el-submodal-title">Hồ sơ diễn tiến 4 pha</h3>
         </div>
-        <button type="button" id="el-btn-detail-close" class="el-btn el-btn--icon" aria-label="Đóng hộp thoại chi tiết ca soi">
+        <button type="button" id="el-btn-detail-close" class="el-btn el-btn--secondary el-btn--icon" aria-label="Đóng hộp thoại chi tiết ca soi">
           <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -1075,11 +1075,11 @@
       </div>
       <div id="el-detail-modal-body" class="el-detail-body"></div>
       <div class="el-submodal-actions">
-        <button type="button" id="el-btn-detail-close-foot" class="el-btn">Đóng cửa sổ chi tiết</button>
+        <button type="button" id="el-btn-detail-close-foot" class="el-btn el-btn--secondary">Đóng cửa sổ chi tiết</button>
       </div>
     </div>
   </div>
 
-  <script src="/js/app.js?v=0.2.2"></script>
+  <script src="/js/app.js?v=0.2.3"></script>
 </body>
 </html>

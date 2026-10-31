@@ -214,17 +214,29 @@ def main() -> int:
                     const dot = activeTab.querySelector('.el-tab-dot');
                     const tabCs = getComputedStyle(activeTab);
                     const dotCs = getComputedStyle(dot);
+                    const deskMark = document.querySelector('.el-brand-mark--header');
+                    const deskMarkRect = deskMark.getBoundingClientRect();
                     const sub = document.querySelector('.el-brand-subtitle--header');
                     const moon = document.getElementById('el-icon-moon');
                     const sun = document.getElementById('el-icon-sun');
+                    const procChip = document.querySelector('#el-case-list .el-proc-chip');
+                    const statusPill = document.querySelector('#el-case-list .el-status-badge');
+                    const kpiTile = document.querySelector('#el-cases-summary .el-stat-card');
                     const chips = Array.from(document.querySelectorAll('#el-case-list .el-proc-chip')).map(ch => ({
                         text: ch.textContent.trim(),
                         hasDot: !!ch.querySelector('.el-proc-dot'),
                     }));
                     return {
+                        deskMarkW: Math.round(deskMarkRect.width),
+                        deskMarkH: Math.round(deskMarkRect.height),
+                        ariaCurrent: activeTab.getAttribute('aria-current') || '',
                         fontWeight: Number(tabCs.fontWeight),
                         borderBottomWidth: parseFloat(tabCs.borderBottomWidth),
                         dotOpacity: parseFloat(dotCs.opacity),
+                        dotW: parseFloat(dotCs.width),
+                        procRadius: procChip ? parseFloat(getComputedStyle(procChip).borderRadius) : 0,
+                        statusRadius: statusPill ? parseFloat(getComputedStyle(statusPill).borderRadius) : 0,
+                        kpiRadius: kpiTile ? parseFloat(getComputedStyle(kpiTile).borderRadius) : 0,
                         headerSubVisible: getComputedStyle(sub).display !== 'none',
                         moonVisible: moon.getBoundingClientRect().width > 0,
                         sunVisible: sun.getBoundingClientRect().width > 0,
@@ -234,9 +246,16 @@ def main() -> int:
             )
             expect_sun = theme_mode == "dark"
             if (
-                desktop_check["fontWeight"] < 600
+                desktop_check["deskMarkW"] != 40
+                or desktop_check["deskMarkH"] != 40
+                or desktop_check["ariaCurrent"] != "page"
+                or desktop_check["fontWeight"] < 600
                 or desktop_check["borderBottomWidth"] < 2.0
                 or desktop_check["dotOpacity"] < 0.99
+                or desktop_check["dotW"] != 5.0
+                or desktop_check["procRadius"] != 6.0
+                or desktop_check["statusRadius"] < 900.0
+                or desktop_check["kpiRadius"] != 10.0
                 or not desktop_check["headerSubVisible"]
                 or desktop_check["sunVisible"] != expect_sun
                 or desktop_check["moonVisible"] == expect_sun
@@ -388,8 +407,8 @@ def main() -> int:
                 };
             }"""
         )
-        if not r4_metrics["headNewCaseOk"] or r4_metrics["toolbarPrimaryBtns"] > 1 or r4_metrics["maxCardPrimaryBtns"] > 1:
-            r4_errs.append(f"Đầu trang Nhật ký ca soi sai cấu trúc nút chính (#el-btn-new-case duy nhất trên thanh công cụ, tối đa 1 CTA bước tiếp/thẻ): {r4_metrics}")
+        if not r4_metrics["headNewCaseOk"] or r4_metrics["toolbarPrimaryBtns"] != 1 or r4_metrics["maxCardPrimaryBtns"] != 0:
+            r4_errs.append(f"Màn Nhật ký ca soi vi phạm quy tắc Design System v1 'mỗi màn hình chỉ một nút chính' (#el-btn-new-case duy nhất, 0 el-btn--primary trên thẻ ca soi): {r4_metrics}")
         if not r4_metrics["exportInExportBar"] or not r4_metrics["exportIsOutlined"]:
             r4_errs.append(f"Nút Xuất bảng nghiên cứu chưa chuyển thành nút phụ trong khu Xuất dữ liệu: {r4_metrics}")
         if r4_metrics["statCardCount"] != 4 or r4_metrics["distinctTopCount"] != 1 or not r4_metrics["subHidden"]:

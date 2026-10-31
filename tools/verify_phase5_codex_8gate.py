@@ -139,14 +139,50 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
         if n_proc.returncode != 0:
             g1_errs.append(f"node --check {js_rel} thất bại: {n_proc.stderr.strip()}")
 
-    tok_diff = subprocess.run(
-        ["git", "diff", "--exit-code", "src/endolog/static/css/tokens.css"],
-        cwd=str(REPO_ROOT),
-        capture_output=True,
-        text=True,
-    )
-    if tok_diff.returncode != 0:
-        g1_errs.append("tokens.css bị sửa đổi trái phép so với bản chốt Phase 4A")
+    ds_tokens_path = REPO_ROOT / "docs" / "brand" / "design-system-v1" / "tokens.css"
+    app_tokens_path = REPO_ROOT / "src" / "endolog" / "static" / "css" / "tokens.css"
+    ds_colors_count = 0
+    if not ds_tokens_path.exists():
+        g1_errs.append("Thiếu tệp đối chiếu chuẩn docs/brand/design-system-v1/tokens.css")
+    else:
+        def _extract_color_tokens(css_text: str) -> dict[tuple[str, str], str]:
+            clean = re.sub(r"/\*.*?\*/", "", css_text, flags=re.S)
+            out: dict[tuple[str, str], str] = {}
+            for scope, block_pat in (
+                ("light", r':root(?:,\s*\[data-theme="light"\])?\s*\{([^}]*)\}'),
+                ("dark", r'\[data-theme="dark"\]\s*\{([^}]*)\}'),
+            ):
+                for m_blk in re.finditer(block_pat, clean, re.S):
+                    for k, v in re.findall(r"(--[a-z0-9\-]+)\s*:\s*([^;]+);", m_blk.group(1)):
+                        val = v.strip().lower()
+                        if val.startswith("#") or val.startswith("rgb") or val.startswith("hsl") or val.startswith("okl"):
+                            out[(scope, k.strip())] = re.sub(r"\s+", " ", val)
+            return out
+
+        ds_colors = _extract_color_tokens(ds_tokens_path.read_text(encoding="utf-8"))
+        app_txt = app_tokens_path.read_text(encoding="utf-8")
+        app_colors = _extract_color_tokens(app_txt)
+        ds_colors_count = len(ds_colors)
+        if ds_colors != app_colors:
+            diff_keys = sorted(set(ds_colors.keys()) ^ set(app_colors.keys())) + [
+                k for k in sorted(set(ds_colors.keys()) & set(app_colors.keys())) if ds_colors[k] != app_colors[k]
+            ]
+            g1_errs.append(f"tokens.css lệch giá trị màu so với Design System v1: {diff_keys[:5]}")
+        for req_tok in (
+            "--touch-min",
+            "--mark-mobile",
+            "--mark-desktop",
+            "--proc-dot",
+            "--space-1",
+            "--space-2",
+            "--space-3",
+            "--space-4",
+            "--space-6",
+            "--space-8",
+            "--radius-pill",
+        ):
+            if f"{req_tok}:" not in app_txt:
+                g1_errs.append(f"tokens.css thiếu biến bắt buộc của Design System v1: {req_tok}")
 
     static_root = REPO_ROOT / "src" / "endolog" / "static"
     color_fn_pat = re.compile(r"(#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\(|\boklch\s*\(|\boklab\s*\()", re.I)
@@ -341,7 +377,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                     {
                         "python_files_compiled": len(py_files),
                         "static_files_scanned": len(scanned_static_files),
-                        "tokens_css_git_diff_bytes": len(tok_diff.stdout),
+                        "tokens_css_ds_v1_color_tokens_matched": ds_colors_count,
                         "dom_upper_snake_hits": len(dom_snake_hits),
                     },
                 )
@@ -1061,7 +1097,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     measured_evidence = {
         "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.2",
+        "version": "0.2.3",
         "overall_status": overall_status,
         "ergonomic_click_budget_proxy": gates["GATE_3_ERGONOMICS_AND_4PHASE_WORKFLOWS"]["metrics"],
         "viewport_and_mobile_budget": gates["GATE_4_MULTIVIEWPORT_AND_MOBILE_BUDGET"]["metrics"],
@@ -1078,7 +1114,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     test_report = {
         "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.2",
+        "version": "0.2.3",
         "overall_status": overall_status,
         "gates_passed": sum(1 for g in gates.values() if g["status"] == "PASS"),
         "gates_total": len(gates),

@@ -1,0 +1,40 @@
+/* EndoLog components — chỉ dùng var(--…) */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap");
+body{margin:0;background:var(--bg-main);color:var(--text-main);font-family:var(--font-sans);font-size:15px;line-height:22px;word-spacing:.02em}
+.el-pad{padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.el-col{padding:16px;display:grid;gap:12px}
+.el-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--radius-md);font:600 15px/1 var(--font-sans);border:1px solid transparent;cursor:pointer}
+.el-btn svg{width:18px;height:18px}
+.el-btn--primary{background:var(--primary-fill);color:var(--on-primary)}
+.el-btn--secondary{background:var(--bg-card);color:var(--text-main);border-color:var(--border-strong)}
+.el-btn--ghost{background:transparent;color:var(--primary)}
+.el-btn:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.el-btn[disabled]{opacity:.45;cursor:not-allowed}
+.el-tabs{display:flex;gap:24px;border-bottom:1px solid var(--border);background:var(--bg-card);padding:0 16px}
+.el-tab{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:48px;font:500 15px/1 var(--font-sans);color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.el-tab svg{width:18px;height:18px}
+.el-tab[aria-current="page"]{color:var(--primary);font-weight:600;border-bottom-color:var(--primary)}
+.el-tab[aria-current="page"]::after{content:"";position:absolute;left:50%;bottom:5px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--accent-light)}
+.el-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:var(--radius-sm);font:700 12px/16px var(--font-sans);letter-spacing:.04em}
+.el-chip i{width:var(--proc-dot);height:var(--proc-dot);border-radius:50%}
+.el-chip--egd{background:var(--proc-egd-tint);color:var(--proc-egd-text)}.el-chip--egd i{background:var(--proc-egd)}
+.el-chip--col{background:var(--proc-col-tint);color:var(--proc-col-text)}.el-chip--col i{background:var(--proc-col)}
+.el-chip--ercp{background:var(--proc-ercp-tint);color:var(--proc-ercp-text)}.el-chip--ercp i{background:var(--proc-ercp)}
+.el-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid currentColor;border-radius:var(--radius-pill);font:600 13px/18px var(--font-sans);background:var(--bg-card);white-space:nowrap}
+.el-pill svg{width:15px;height:15px}
+.el-pill--ned{color:var(--clinical-ned)}.el-pill--due{color:var(--clinical-due)}.el-pill--pending{color:var(--clinical-pending)}.el-pill--urgent{color:var(--clinical-urgent)}.el-pill--neutral{color:var(--clinical-neutral)}
+.el-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg)}
+.el-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.el-kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;display:grid;gap:4px}
+.el-kpi b{font:800 28px/32px var(--font-display);color:var(--text-heading);font-variant-numeric:tabular-nums}
+.el-kpi span{font:500 12px/16px var(--font-sans);color:var(--text-muted)}
+.el-case{padding:14px 16px;display:grid;gap:10px}
+.el-case__top{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.el-case__code{font:600 15px/20px var(--font-sans);color:var(--text-main);font-variant-numeric:tabular-nums}
+.el-case__meta{font-size:13px;color:var(--text-muted)}
+.el-case__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;border-top:1px solid var(--border);padding-top:10px}
+.el-label{font:500 12px/16px var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.el-strong{font:600 15px/22px var(--font-sans);color:var(--text-heading)}
+.el-muted{font-size:13px;line-height:18px;color:var(--text-muted)}
+.el-wm{font:800 30px/1 var(--font-display);color:var(--text-heading);letter-spacing:-.01em}.el-wm span{color:var(--primary)}
+.el-sub{font:400 12px/16px var(--font-sans);color:var(--text-muted);margin-top:4px}

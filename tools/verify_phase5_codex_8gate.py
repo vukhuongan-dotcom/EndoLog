@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 5 Codex 8-Gate E2E Verification Runner for EndoLog v0.2.0 (Gate B Completion).
+"""Phase 5 Codex 8-Gate E2E Verification Runner for EndoLog v0.2.1 (Gate B Completion + SurgiLog 4-Phase Progression).
 
 Executes all 8 Codex Gates against an isolated ephemeral loopback Uvicorn instance
 and emits machine-readable receipts to docs/verification/measured_evidence.json
@@ -389,6 +389,13 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                     page.locator("#el-drawer-close").click()
                     _set_theme(page, "light")
 
+                    page.locator("#el-case-list .el-case-card", has_text="ERCP-2026-0001").locator(".action-btn-detail").click()
+                    page.locator("#el-detail-modal").wait_for(state="visible")
+                    s5 = SCREENSHOT_DIR / "chi_tiet_4_pha_1440_light.png"
+                    page.screenshot(path=str(s5), full_page=False)
+                    drawer_shots.append(s5.name)
+                    page.locator("#el-btn-detail-close").click()
+
                     if BRAIN_DIR.exists():
                         for fn in drawer_shots:
                             shutil.copy2(SCREENSHOT_DIR / fn, BRAIN_DIR / fn)
@@ -597,7 +604,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                                 };
                                 return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
                             }
-                            const selectors = ['.el-section-title', '.el-case-code', '.el-field-primary', '.el-field-secondary', '.el-status-badge', '.el-proc-chip', '#el-btn-new-case'];
+                            const selectors = ['.el-section-title', '.el-case-code', '.el-field-primary', '.el-field-secondary', '.el-status-badge', '.el-proc-chip', '#el-btn-new-case', '.el-phase-pill', '.el-phase-summary-detail'];
                             let checked = 0;
                             const bad = [];
                             for (const sel of selectors) {
@@ -641,6 +648,61 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                 _switch_view(page, "cases", 1440)
 
                 initial_card_count = page.locator("#el-case-list .el-case-card").count()
+
+                # 3.0. Verify SurgiLog-style 4-phase progression cluster (P1|P2|P3|P4), Chi tiết modal & ••• menu on every card
+                prog_audit = page.evaluate(
+                    """() => {
+                        const cards = Array.from(document.querySelectorAll('#el-case-list .el-case-card'));
+                        const badCards = cards.filter(c => c.querySelectorAll('.el-phase-pill').length !== 4).length;
+                        return { totalCards: cards.length, badCards };
+                    }"""
+                )
+                if prog_audit["totalCards"] < 5 or prog_audit["badCards"] != 0:
+                    g3_errs.append(f"Thẻ ca soi thiếu cụm 4 pha P1..P4 chuẩn SurgiLog: {prog_audit}")
+
+                # Open 4-phase Detail Modal via 'Chi tiết', verify 0 raw UPPER_SNAKE_CASE & Escape close
+                page.locator("#el-case-list .el-case-card").first.locator(".action-btn-detail").click()
+                page.locator("#el-detail-modal").wait_for(state="visible", timeout=3000)
+                detail_check = page.evaluate(
+                    """() => {
+                        const m = document.getElementById('el-detail-modal');
+                        const phaseCards = m ? m.querySelectorAll('.el-detail-phase-card').length : 0;
+                        const txt = m ? (m.innerText || '') : '';
+                        const rawEnums = (txt.match(/\\b[A-Z]{2,}(?:_[A-Z0-9]+)+\\b/g) || []);
+                        const shellInert = document.getElementById('el-app-shell').hasAttribute('inert');
+                        return { phaseCards, rawEnums, shellInert };
+                    }"""
+                )
+                if detail_check["phaseCards"] != 4 or detail_check["rawEnums"] or not detail_check["shellInert"]:
+                    g3_errs.append(f"Hộp thoại Chi tiết 4 pha lỗi cấu trúc/inert hoặc lộ mã enum: {detail_check}")
+                page.keyboard.press("Escape")
+                page.locator("#el-detail-modal-backdrop").wait_for(state="hidden", timeout=3000)
+
+                # Open overflow menu '•••' and close via Escape, then click P3 pill directly to verify phase jump
+                first_more = page.locator("#el-case-list .el-case-card").first.locator(".el-btn-more")
+                first_more.click()
+                if first_more.get_attribute("aria-expanded") != "true":
+                    g3_errs.append("Nút ••• không mở được trình đơn thao tác nhanh 4 pha")
+                page.keyboard.press("Escape")
+                if first_more.get_attribute("aria-expanded") != "false":
+                    g3_errs.append("Nhấn Escape không đóng trình đơn thao tác nhanh •••")
+
+                page.locator('#el-case-list .el-case-card').first.locator('[data-phase-pill="p3"]').click()
+                page.locator("#el-phase-panel-p3").wait_for(state="visible", timeout=3000)
+                page.locator("#el-drawer-close").click()
+                page.locator("#el-case-drawer-backdrop").wait_for(state="hidden", timeout=3000)
+
+                _switch_view(page, "surveillance", 1440)
+                surv_prog_audit = page.evaluate(
+                    """() => {
+                        const cards = Array.from(document.querySelectorAll('#el-surveillance-list .el-case-card'));
+                        const badCards = cards.filter(c => c.querySelectorAll('.el-phase-pill').length !== 4).length;
+                        return { totalCards: cards.length, badCards };
+                    }"""
+                )
+                if surv_prog_audit["totalCards"] < 1 or surv_prog_audit["badCards"] != 0:
+                    g3_errs.append(f"Thẻ hẹn soi lại thiếu cụm 4 pha P1..P4 chuẩn SurgiLog: {surv_prog_audit}")
+                _switch_view(page, "cases", 1440)
 
                 # 3A. Negative COL Screening via 1-Tap Preset (Target <= 8 clicks)
                 clicks_neg_col = 0
@@ -898,10 +960,12 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                 ):
                     g7_errs.append(f"Dọn sạch DOM khi hết hạn không thao tác lúc ngăn kéo đang mở chưa triệt để: {post_wipe}")
 
-                # Re-authenticate via dev bypass to verify audit chain at Gate 8
+                # Restore normal 15-minute idle timeout before re-authenticating via dev bypass to verify audit chain at Gate 8
+                page.evaluate("() => window.__ENDOLOG_RUNTIME_AUDIT__.setIdleTimeoutForTest(900000)")
                 page.locator("#el-btn-dev-bypass").click()
                 page.locator("#el-app-shell").wait_for(state="visible", timeout=5000)
-                audit_check = page.evaluate("async () => await (await fetch('/api/audit/verify')).json()")
+                page.locator("#el-case-list .el-case-card").first.wait_for(state="visible", timeout=5000)
+                audit_check = page.evaluate("async () => await (await fetch('/api/audit/verify', { credentials: 'same-origin' })).json()")
 
                 record_gate(
                     "GATE_3_ERGONOMICS_AND_4PHASE_WORKFLOWS",
@@ -975,7 +1039,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     measured_evidence = {
         "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.0",
+        "version": "0.2.1",
         "overall_status": overall_status,
         "ergonomic_click_budget_proxy": gates["GATE_3_ERGONOMICS_AND_4PHASE_WORKFLOWS"]["metrics"],
         "viewport_and_mobile_budget": gates["GATE_4_MULTIVIEWPORT_AND_MOBILE_BUDGET"]["metrics"],
@@ -992,7 +1056,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     test_report = {
         "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.0",
+        "version": "0.2.1",
         "overall_status": overall_status,
         "gates_passed": sum(1 for g in gates.values() if g["status"] == "PASS"),
         "gates_total": len(gates),

@@ -5,6 +5,14 @@ Mọi thay đổi đáng chú ý của dự án **EndoLog** (*Hệ Thống Sổ 
 Định dạng tuân thủ chuẩn [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) và quy tắc đánh số phiên bản theo [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) (`MAJOR.MINOR.PATCH`).
 Các nhóm phân loại hợp lệ: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.2.1] - 2026-10-31
+
+### Added
+- Đồng bộ **Cụm diễn tiến theo dõi dọc 4 pha chuẩn SurgiLog Pro (`P1..P4`)** trên 100% thẻ ca nội soi tại cả 2 màn hình `Nhật ký ca soi` và `Hẹn soi lại` (`src/endolog/static/`):
+  - Thanh 4 phân đoạn liền khối `P1`, `P2`, `P3`, `P4` bằng biểu tượng SVG nét 2 px tự host (`0` emoji Unicode, vùng chạm `>= 44×44 px`, `0` thay đổi `tokens.css`) phản ánh trực quan 5 trạng thái (`Hoàn tất`, `Đang chờ`, `Đang hẹn soi`, `Cảnh báo hội chẩn / biến cố`, `Thường quy`), cho phép nhấp trực tiếp mở ngăn kéo đúng pha tương ứng.
+  - Hàng tác vụ ngữ cảnh phía trên (`Sửa P1` · nút hành động chính ưu tiên theo pha kế tiếp `Nhập GPB P4` / `Theo dõi P3` / `Soi lại P4` / `Thủ thuật P2` · `Chi tiết` · trình đơn tràn `•••` tự động bung ngược `.is-dropup` khi sát mép dưới màn hình).
+  - Hộp thoại **Xem chi tiết diễn tiến 4 pha (`#el-detail-modal`)** hiển thị bảng tổng hợp 4 pha bằng tiếng Việt tự nhiên (`0` lộ mã `UPPER_SNAKE_CASE`), tích hợp khóa tiêu điểm `inert` và tự động xóa trắng DOM khi đăng xuất / `401` / hết hạn 15 phút ([FEAT-008]).
+
 ## [0.2.0] - 2026-10-31
 
 ### Added

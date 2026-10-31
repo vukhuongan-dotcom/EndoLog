@@ -8,9 +8,9 @@
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/css/fonts.css?v=0.2.0">
-  <link rel="stylesheet" href="/css/tokens.css?v=0.2.0">
-  <link rel="stylesheet" href="/css/app.css?v=0.2.0">
+  <link rel="stylesheet" href="/css/fonts.css?v=0.2.1">
+  <link rel="stylesheet" href="/css/tokens.css?v=0.2.1">
+  <link rel="stylesheet" href="/css/app.css?v=0.2.1">
 </head>
 <body>
   <!-- Màn hình đăng nhập (Zero-Image, tên đầy đủ tiếng Việt) -->
@@ -1058,6 +1058,28 @@
     </div>
   </div>
 
-  <script src="/js/app.js?v=0.2.0"></script>
+  <!-- HỘP THOẠI XEM CHI TIẾT DIỄN TIẾN THEO DÕI 4 PHA (ĐỒNG BỘ SURGILOG PRO) -->
+  <div id="el-detail-modal-backdrop" class="el-submodal-backdrop" hidden>
+    <div id="el-detail-modal" class="el-submodal el-detail-modal" role="dialog" aria-modal="true" aria-labelledby="el-detail-modal-title">
+      <div class="el-detail-head">
+        <div class="el-detail-head-meta">
+          <div id="el-detail-modal-badges" class="el-case-id-group"></div>
+          <h3 id="el-detail-modal-title" class="el-submodal-title">Hồ sơ diễn tiến 4 pha</h3>
+        </div>
+        <button type="button" id="el-btn-detail-close" class="el-btn el-btn--icon" aria-label="Đóng hộp thoại chi tiết ca soi">
+          <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div id="el-detail-modal-body" class="el-detail-body"></div>
+      <div class="el-submodal-actions">
+        <button type="button" id="el-btn-detail-close-foot" class="el-btn">Đóng cửa sổ chi tiết</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js?v=0.2.1"></script>
 </body>
 </html>

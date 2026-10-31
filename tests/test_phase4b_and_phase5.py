@@ -434,6 +434,13 @@ function reg(tag, id, attrs = {}) {
   ['div', 'el-dirty-modal-backdrop', { hidden: true }],
   ['div', 'el-dup-modal-backdrop', { hidden: true }],
   ['div', 'el-vault-modal-backdrop', { hidden: true }],
+  ['div', 'el-detail-modal-backdrop', { hidden: true }],
+  ['div', 'el-detail-modal', {}],
+  ['div', 'el-detail-modal-badges', {}],
+  ['h3', 'el-detail-modal-title', {}],
+  ['div', 'el-detail-modal-body', {}],
+  ['button', 'el-btn-detail-close', {}],
+  ['button', 'el-btn-detail-close-foot', {}],
   ['form', 'el-case-form', {}],
   ['input', 'el-f-full-name', {}],
   ['input', 'el-f-birth-year', {}],
@@ -634,3 +641,116 @@ vm.runInNewContext(code, Object.assign(win, {
     assert out["afterIdle"]["fullName"] == ""
     assert out["afterIdle"]["drawerHidden"] is True
     assert out["afterIdle"]["shellInert"] is False
+
+
+def test_surgilog_4phase_progression_states_unit() -> None:
+    """Verify computeCasePhaseProgression maps all 5 states (done, pending, active, urgent, na) accurately."""
+    node_script = r"""
+const fs = require('fs');
+const vm = require('vm');
+const code = fs.readFileSync(process.env.ENDOLOG_APP_JS, 'utf8');
+
+class StubEl {
+  constructor() { this.value = ''; this.textContent = ''; this.innerHTML = ''; this.hidden = false; }
+  addEventListener() {}
+  setAttribute() {}
+  removeAttribute() {}
+  querySelectorAll() { return []; }
+}
+const stub = new StubEl();
+const doc = {
+  documentElement: stub,
+  body: { appendChild() {} },
+  getElementById() { return stub; },
+  querySelectorAll() { return []; },
+  createElement() { return new StubEl(); },
+  addEventListener() {}
+};
+const win = {
+  document: doc,
+  location: { search: '?login=1', href: 'http://localhost/' },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+  sessionStorage: { getItem() { return null; }, setItem() {}, clear() {} },
+  navigator: {},
+  URLSearchParams,
+  setTimeout,
+  clearTimeout,
+  setInterval,
+  clearInterval,
+  getComputedStyle() { return { getPropertyValue() { return '#F4F7FC'; } }; },
+  addEventListener() {},
+  async fetch() { return { ok: true, status: 200, async json() { return {}; } }; }
+};
+win.window = win;
+vm.runInNewContext(code, Object.assign(win, {
+  fetch: win.fetch,
+  getComputedStyle: win.getComputedStyle,
+  Date, Math, Number, String, Boolean, Array, Object, Promise, Error, JSON, encodeURIComponent, parseInt
+}));
+
+const compute = win.__ENDOLOG_RUNTIME_AUDIT__.computeCasePhaseProgression;
+
+// 1. Negative screening COL closed 30d -> P1=done, P2=done, P3=done, P4=na
+const negCol = compute({
+  track: 'COL',
+  cecal_intubation: 'YES',
+  bbps: { evaluable: true },
+  followup_30d_status: 'COMPLETED_NO_AE',
+  pathology_completion_status: 'NOT_APPLICABLE',
+  surveillance: { recommended_interval_label: '10 năm', due_date: '2036-10-12' }
+});
+
+// 2. COL incomplete cecal without reason + pending GPB + pending 30d -> P1=done, P2=pending, P3=pending, P4=pending
+const incompleteCol = compute({
+  track: 'COL',
+  cecal_intubation: 'NO',
+  cecal_failure_reason: '',
+  followup_30d_status: 'PENDING_WINDOW',
+  pathology_completion_status: 'PENDING',
+  surveillance: { status: 'PENDING_GPB' }
+});
+
+// 3. Multi-polyp COL with complete GPB & 3-5y surveillance -> P4=active, P3=pending
+const activeSurvCol = compute({
+  track: 'COL',
+  cecal_intubation: 'YES',
+  bbps: { evaluable: true },
+  followup_30d_status: 'PENDING_WINDOW',
+  pathology_completion_status: 'COMPLETE',
+  surveillance: { recommended_interval_label: '3–5 năm', due_date: '2029-10-21' }
+});
+
+// 4. ERCP with PEP AE + fulfilled surveillance -> P1=done, P2=done, P3=urgent, P4=done
+const ercpAeDone = compute({
+  track: 'ERCP',
+  ercp_detail: { selective_cannulation: 'SUCCESS' },
+  followup_30d_status: 'COMPLETED_WITH_AE',
+  adverse_events: [{ event_type: 'PEP', pep_severity: 'MILD', agree_grade: 'II' }],
+  pathology_completion_status: 'COMPLETE',
+  surveillance: { fulfilled_by_case_id: 'case_followup_01', recommended_interval_label: '3 tháng' }
+});
+
+// 5. EGD non-curative ESD -> P4=urgent (Surgical MDT)
+const egdUrgent = compute({
+  track: 'EGD',
+  index_lesion: { anatomical_site: 'Hang vị', resection_method: 'ESD' },
+  followup_30d_status: 'LOST_TO_FOLLOWUP',
+  pathology_completion_status: 'COMPLETE',
+  surveillance: { category: 'SURGICAL_MDT_CONSULT_ALERT' }
+});
+
+process.stdout.write(JSON.stringify({ negCol, incompleteCol, activeSurvCol, ercpAeDone, egdUrgent }));
+"""
+    proc = subprocess.run(
+        ["node", "-e", node_script],
+        env={"PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin", "ENDOLOG_APP_JS": str(APP_JS_PATH)},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    res = json.loads(proc.stdout)
+    assert [p["state"] for p in res["negCol"]["phases"]] == ["done", "done", "done", "na"]
+    assert [p["state"] for p in res["incompleteCol"]["phases"]] == ["done", "pending", "pending", "pending"]
+    assert [p["state"] for p in res["activeSurvCol"]["phases"]] == ["done", "done", "pending", "active"]
+    assert [p["state"] for p in res["ercpAeDone"]["phases"]] == ["done", "done", "urgent", "done"]
+    assert [p["state"] for p in res["egdUrgent"]["phases"]] == ["done", "done", "na", "urgent"]

@@ -111,6 +111,36 @@
     SEVERE: 'mức nặng'
   };
 
+  const FOLLOWUP_30D_LABELS_VI = {
+    PENDING_WINDOW: 'Đang trong cửa sổ theo dõi 14–30 ngày',
+    COMPLETED_NO_AE: 'Hoàn tất 30 ngày — không ghi nhận biến cố',
+    COMPLETED_WITH_AE: 'Hoàn tất — có ghi nhận biến cố sau thủ thuật',
+    LOST_TO_FOLLOWUP: 'Mất dấu theo dõi sau xuất viện'
+  };
+
+  const PATH_STATUS_LABELS_VI = {
+    NOT_APPLICABLE: 'Không sinh thiết / không áp dụng',
+    PENDING: 'Đang chờ kết quả giải phẫu bệnh',
+    PARTIAL: 'Đã có một phần kết quả giải phẫu bệnh',
+    COMPLETE: 'Đã hoàn tất toàn bộ giải phẫu bệnh'
+  };
+
+  const AE_EVENT_TYPE_LABELS_VI = {
+    PEP: 'Viêm tụy sau ERCP',
+    BLEEDING: 'Chảy máu tiêu hóa sau thủ thuật',
+    PERFORATION: 'Thủng ống tiêu hóa — đường mật',
+    CHOLANGITIS: 'Viêm đường mật sau can thiệp',
+    SEDATION_CARDIORESP: 'Biến cố tim phổi — an thần',
+    POST_POLYPECTOMY_SYNDROME: 'Hội chứng đốt điện sau cắt polyp',
+    OTHER: 'Biến cố sau thủ thuật khác'
+  };
+
+  const AE_WINDOW_LABELS_VI = {
+    INTRAPROCEDURAL: 'Trong lúc soi',
+    INPATIENT_EARLY: 'Nội trú sớm (< 48 giờ)',
+    DELAYED_30D: 'Muộn trong 14–30 ngày'
+  };
+
   const SITE_QUICK_CHIPS_BY_TRACK = {
     COL: ['Manh tràng', 'Đại tràng lên', 'Đại tràng ngang', 'Đại tràng xuống', 'Đại tràng chậu hông', 'Trực tràng'],
     EGD: ['Thực quản giữa', 'Thực quản dưới', 'Tâm vị', 'Thân vị', 'Góc bờ cong nhỏ', 'Hang vị', 'Tá tràng D1', 'Tá tràng D2']
@@ -211,6 +241,12 @@
     timerRunning: false,
     timerElapsedSec: 0,
     timerIntervalId: null
+  };
+
+  const detailModalState = {
+    isOpen: false,
+    caseId: null,
+    returnFocusEl: null
   };
 
   function byId(id) {
@@ -596,6 +632,250 @@
     };
   }
 
+  function phasePillIconSvg(stateKey) {
+    if (stateKey === 'done') {
+      return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+    }
+    if (stateKey === 'pending') {
+      return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14"/><path d="M5 21h14"/><path d="M17 3v4.5a5 5 0 0 1-2.2 4.16L12 13.5l-2.8-1.84A5 5 0 0 1 7 7.5V3"/><path d="M7 21v-4.5a5 5 0 0 1 2.2-4.16L12 10.5l2.8 1.84A5 5 0 0 1 17 16.5V21"/></svg>';
+    }
+    if (stateKey === 'active') {
+      return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>';
+    }
+    if (stateKey === 'urgent') {
+      return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    }
+    return '<svg class="el-phase-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="8.5" y1="12" x2="15.5" y2="12"/></svg>';
+  }
+
+  function moreDotsIconSvg() {
+    return '<svg class="el-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>';
+  }
+
+  /* Tính toán tiến độ theo dõi dọc 4 pha (P1..P4) đồng bộ SurgiLog Pro cho mọi ca EGD / COL / ERCP */
+  function computeCasePhaseProgression(c) {
+    const rec = c || {};
+    const track = String(rec.track || 'COL').toUpperCase();
+    const surv = rec.surveillance || {};
+    const idx = rec.index_lesion || null;
+
+    const p1 = {
+      key: 'p1',
+      code: 'P1',
+      state: 'done',
+      shortText: 'Đã lập hồ sơ',
+      title: 'Pha 1 (Hành chính & chỉ định): Đã hoàn tất — bấm để sửa Pha 1'
+    };
+
+    let p2Done = true;
+    if (track === 'COL') {
+      const bbpsOk = Boolean(
+        (rec.bbps && rec.bbps.evaluable) ||
+        (typeof rec.bbps_right === 'number' && typeof rec.bbps_transverse === 'number' && typeof rec.bbps_left === 'number')
+      );
+      p2Done = Boolean(
+        (rec.cecal_intubation === 'YES' && bbpsOk) ||
+        (rec.cecal_intubation === 'NO' && rec.cecal_failure_reason) ||
+        rec.exclude_from_cir
+      );
+    } else if (track === 'EGD') {
+      if (idx && idx.resection_method && idx.resection_method !== 'NONE') {
+        const hasSiteOrBleed = Boolean(idx.anatomical_site || (idx.bleeding_source_type && idx.bleeding_source_type !== 'NONE'));
+        p2Done = hasSiteOrBleed;
+      } else {
+        p2Done = true;
+      }
+    } else if (track === 'ERCP') {
+      const er = rec.ercp_computed || rec.ercp_detail || null;
+      p2Done = Boolean(er && (er.selective_cannulation === 'SUCCESS' || er.selective_cannulation === 'FAILED'));
+    }
+
+    const p2 = {
+      key: 'p2',
+      code: 'P2',
+      state: p2Done ? 'done' : 'pending',
+      shortText: p2Done ? 'Thủ thuật đạt' : 'Chờ nhập P2',
+      title: p2Done
+        ? 'Pha 2 (Thông số thủ thuật): Đã ghi nhận đầy đủ — bấm để mở Pha 2'
+        : 'Pha 2 (Thông số thủ thuật): Chưa đủ thông số — bấm để bổ sung Pha 2'
+    };
+
+    const fu30 = rec.followup_30d_status || 'PENDING_WINDOW';
+    const aeCount = Array.isArray(rec.adverse_events) ? rec.adverse_events.length : 0;
+    let p3State = 'pending';
+    let p3Short = 'Theo dõi 30 ngày';
+    let p3Title = 'Pha 3 (Biến cố 14–30 ngày): Đang trong cửa sổ theo dõi — bấm để cập nhật Pha 3';
+    if (fu30 === 'COMPLETED_NO_AE') {
+      p3State = 'done';
+      p3Short = '0 biến cố';
+      p3Title = 'Pha 3 (Biến cố 14–30 ngày): Đã đóng cửa sổ 30 ngày, không có biến cố';
+    } else if (fu30 === 'COMPLETED_WITH_AE') {
+      p3State = 'urgent';
+      p3Short = (aeCount || 1) + ' biến cố';
+      p3Title = 'Pha 3 (Biến cố 14–30 ngày): Đã ghi nhận biến cố sau thủ thuật — bấm để mở Pha 3';
+    } else if (fu30 === 'LOST_TO_FOLLOWUP') {
+      p3State = 'na';
+      p3Short = 'Mất dấu';
+      p3Title = 'Pha 3 (Biến cố 14–30 ngày): Mất dấu theo dõi sau xuất viện';
+    }
+    const p3 = { key: 'p3', code: 'P3', state: p3State, shortText: p3Short, title: p3Title };
+
+    const pathSt = rec.pathology_completion_status || 'NOT_APPLICABLE';
+    const intervalLabel = sanitizeEnumFallbackVi(surv.recommended_interval_label || '', 'Theo chỉ định');
+    let p4State = 'na';
+    let p4Short = intervalLabel ? ('Hẹn ' + intervalLabel) : 'Thường quy';
+    let p4Title = 'Pha 4 (Giải phẫu bệnh & hẹn soi): Không sinh thiết / tầm soát thường quy';
+
+    if (pathSt === 'PENDING' || pathSt === 'PARTIAL' || surv.status === 'PENDING_GPB') {
+      p4State = 'pending';
+      p4Short = 'Chờ GPB';
+      p4Title = 'Pha 4 (Giải phẫu bệnh & hẹn soi): Đang chờ kết quả giải phẫu bệnh — bấm để nhập GPB';
+    } else if (surv.category === 'SURGICAL_MDT_CONSULT_ALERT') {
+      p4State = 'urgent';
+      p4Short = 'Hội chẩn Ngoại';
+      p4Title = 'Pha 4 (Giải phẫu bệnh & hẹn soi): Cảnh báo chuyển hội chẩn Ngoại khoa — bấm để mở Pha 4';
+    } else if (surv.fulfilled_by_case_id) {
+      p4State = 'done';
+      p4Short = 'Đã soi lại';
+      p4Title = 'Pha 4 (Giải phẫu bệnh & hẹn soi): Đã đóng vòng hẹn bằng ca soi lại liên kết';
+    } else if (
+      pathSt === 'COMPLETE' ||
+      Boolean(rec.clinician_followup_due_date) ||
+      (Boolean(surv.due_date) && intervalLabel !== '10 năm')
+    ) {
+      p4State = 'active';
+      p4Short = rec.clinician_followup_due_date
+        ? ('Hẹn ' + formatViDate(rec.clinician_followup_due_date))
+        : (intervalLabel ? ('Hẹn ' + intervalLabel) : 'Đang hẹn soi');
+      p4Title = 'Pha 4 (Giải phẫu bệnh & hẹn soi): Đang theo dõi hẹn soi lại — bấm để mở Pha 4';
+    }
+    const p4 = { key: 'p4', code: 'P4', state: p4State, shortText: p4Short, title: p4Title };
+
+    const phases = [p1, p2, p3, p4];
+    const settledCount = phases.filter((ph) => ph.state !== 'pending').length;
+
+    let nextStepLabel = 'Hoàn tất ' + settledCount + '/4 pha';
+    if (p2.state === 'pending') {
+      nextStepLabel = 'Bước tiếp: Bổ sung thông số Pha 2';
+    } else if (p4.state === 'pending') {
+      nextStepLabel = 'Bước tiếp: Nhập giải phẫu bệnh Pha 4';
+    } else if (p4.state === 'urgent') {
+      nextStepLabel = 'Ưu tiên: Chuyển hội chẩn chuyên khoa';
+    } else if (p3.state === 'pending') {
+      nextStepLabel = 'Bước tiếp: Đóng theo dõi 30 ngày (Pha 3)';
+    } else if (p4.state === 'active') {
+      nextStepLabel = 'Đang quản lý lịch hẹn soi lại (Pha 4)';
+    }
+
+    const summaryLine = (
+      'P1: ' + p1.shortText +
+      ' · P2: ' + p2.shortText +
+      ' · P3: ' + p3.shortText +
+      ' · P4: ' + p4.shortText
+    );
+
+    return { p1, p2, p3, p4, phases, settledCount, nextStepLabel, summaryLine };
+  }
+
+  function renderPhasePillTrackHtml(caseId, prog) {
+    const cid = escapeHtml(caseId || '');
+    return (
+      '<div class="el-phase-pill-cluster" role="group" aria-label="Tiến độ 4 pha theo dõi ca soi">' +
+      prog.phases.map((ph) => (
+        '<button type="button" class="el-phase-pill el-phase-pill--' + escapeHtml(ph.state) + '" ' +
+        'data-phase-pill="' + escapeHtml(ph.key) + '" ' +
+        'data-case-edit="' + cid + '" ' +
+        'data-target-phase="' + escapeHtml(ph.key) + '" ' +
+        'title="' + escapeHtml(ph.title) + '" ' +
+        'aria-label="' + escapeHtml(ph.title) + '">' +
+        phasePillIconSvg(ph.state) +
+        '<span>' + escapeHtml(ph.code) + '</span>' +
+        '</button>'
+      )).join('') +
+      '</div>'
+    );
+  }
+
+  function renderCaseProgressionBar(c, contextView) {
+    const cid = escapeHtml(c.case_id || '');
+    const surv = c.surveillance || {};
+    const prog = computeCasePhaseProgression(c);
+    const isP2Pending = prog.p2.state === 'pending';
+    const isPendingGpb = prog.p4.state === 'pending';
+    const isPending30d = prog.p3.state === 'pending';
+    const canCreateLinked = Boolean(
+      !surv.fulfilled_by_case_id &&
+      !isPendingGpb &&
+      surv.category !== 'SURGICAL_MDT_CONSULT_ALERT' &&
+      (contextView === 'surveillance' || prog.p4.state === 'active')
+    );
+
+    let contextualPrimaryBtnHtml = '';
+    if (contextView === 'surveillance') {
+      if (isPendingGpb) {
+        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB P4</button>';
+      } else if (canCreateLinked) {
+        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-link-surv" data-create-linked="' + cid + '">Tạo ca soi lại</button>';
+      } else if (isPending30d) {
+        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi P3</button>';
+      } else {
+        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p4">Mở Pha 4</button>';
+      }
+    } else if (isP2Pending) {
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p2">Thủ thuật P2</button>';
+    } else if (isPendingGpb) {
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB P4</button>';
+    } else if (isPending30d) {
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi P3</button>';
+    } else if (canCreateLinked) {
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-link-surv" data-create-linked="' + cid + '">Soi lại P4</button>';
+    } else {
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p2">Thủ thuật P2</button>';
+    }
+
+    const allowLinkInMenu = Boolean(!surv.fulfilled_by_case_id && !isPendingGpb && surv.category !== 'SURGICAL_MDT_CONSULT_ALERT');
+    const isSuper = Boolean(state.user && state.user.role === 'superadmin');
+
+    const overflowMenuHtml = (
+      '<div class="el-action-menu-wrap">' +
+      '<button type="button" class="el-btn el-btn--compact el-btn-more" data-case-more="' + cid + '" aria-haspopup="menu" aria-expanded="false" aria-label="Mở trình đơn thao tác nhanh 4 pha" title="Thao tác khác">' +
+      moreDotsIconSvg() +
+      '</button>' +
+      '<div class="el-action-menu-dropdown" role="menu" hidden>' +
+      '<button type="button" role="menuitem" class="el-action-menu-item" data-case-detail="' + cid + '">Xem chi tiết diễn tiến 4 pha</button>' +
+      '<button type="button" role="menuitem" class="el-action-menu-item" data-case-edit="' + cid + '" data-target-phase="p1">Pha 1 · Hành chính &amp; chỉ định</button>' +
+      '<button type="button" role="menuitem" class="el-action-menu-item" data-case-edit="' + cid + '" data-target-phase="p2">Pha 2 · Thông số thủ thuật</button>' +
+      '<button type="button" role="menuitem" class="el-action-menu-item" data-case-edit="' + cid + '" data-target-phase="p3">Pha 3 · Biến cố 14–30 ngày</button>' +
+      '<button type="button" role="menuitem" class="el-action-menu-item" data-case-edit="' + cid + '" data-target-phase="p4">Pha 4 · Giải phẫu bệnh &amp; hẹn soi</button>' +
+      (allowLinkInMenu
+        ? ('<button type="button" role="menuitem" class="el-action-menu-item" data-create-linked="' + cid + '">Tạo ca soi lại liên kết</button>')
+        : '') +
+      (isSuper
+        ? ('<div class="el-action-menu-sep" role="separator"></div><button type="button" role="menuitem" class="el-action-menu-item el-action-menu-item--danger" data-danger-case="' + cid + '">Hủy hiệu lực hồ sơ...</button>')
+        : '') +
+      '</div>' +
+      '</div>'
+    );
+
+    return (
+      '<div class="el-card-progression-bar">' +
+      '<div class="el-phase-summary-meta">' +
+      '<p class="el-phase-summary-kicker"><span>Diễn tiến theo dõi 4 pha</span><span class="el-phase-summary-count">· ' + escapeHtml(prog.nextStepLabel) + '</span></p>' +
+      '<p class="el-phase-summary-detail">' + escapeHtml(prog.summaryLine) + '</p>' +
+      '</div>' +
+      '<div class="el-action-cluster">' +
+      '<div class="el-action-buttons-row">' +
+      '<button type="button" class="el-btn el-btn--compact action-btn-p1" data-case-edit="' + cid + '" data-target-phase="p1">Sửa P1</button>' +
+      contextualPrimaryBtnHtml +
+      '<button type="button" class="el-btn el-btn--compact action-btn-detail" data-case-detail="' + cid + '">Chi tiết</button>' +
+      overflowMenuHtml +
+      '</div>' +
+      renderPhasePillTrackHtml(c.case_id, prog) +
+      '</div>' +
+      '</div>'
+    );
+  }
+
   function renderCasesView() {
     const summaryEl = byId('el-cases-summary');
     const listEl = byId('el-case-list');
@@ -649,20 +929,6 @@
       const guidelineShort = formatGuidelineLabelVi(surv.guideline_id, true);
       const refShort = surv.reference_guideline_id ? formatGuidelineLabelVi(surv.reference_guideline_id, true) : 'ESGE 2020';
 
-      const isPendingGpb = c.pathology_completion_status === 'PENDING' || c.pathology_completion_status === 'PARTIAL';
-      const isPending30d = c.followup_30d_status === 'PENDING_WINDOW';
-      const cardActionsHtml = (
-        '<div class="el-card-actions">' +
-        (isPendingGpb
-          ? ('<button type="button" class="el-btn el-btn--compact action-btn-p4" data-case-edit="' + escapeHtml(c.case_id) + '" data-target-phase="p4">Nhập GPB (Pha 4)</button>')
-          : '') +
-        (isPending30d
-          ? ('<button type="button" class="el-btn el-btn--compact action-btn-p3" data-case-edit="' + escapeHtml(c.case_id) + '" data-target-phase="p3">Theo dõi 30 ngày</button>')
-          : '') +
-        '<button type="button" class="el-btn el-btn--compact action-btn-p2" data-case-edit="' + escapeHtml(c.case_id) + '" data-target-phase="p2">Cập nhật hồ sơ</button>' +
-        '</div>'
-      );
-
       return (
         '<article class="el-case-card">' +
         '<div class="el-case-top">' +
@@ -690,7 +956,7 @@
         '<p class="el-field-muted">' + escapeHtml(guidelineShort) + (surv.is_divergent_guideline ? (' · Đối chiếu ' + escapeHtml(refShort) + ': ' + escapeHtml(surv.reference_interval_label)) : '') + '</p>' +
         '</div>' +
         '</div>' +
-        cardActionsHtml +
+        renderCaseProgressionBar(c, 'cases') +
         '</article>'
       );
     }).join('');
@@ -706,8 +972,9 @@
     });
 
     listEl.innerHTML = rows.map((r) => {
-      const surv = r.surveillance || {};
-      const pat = r.patient || {};
+      const fullCase = state.cases.find((item) => item.case_id === r.case_id) || r;
+      const surv = r.surveillance || fullCase.surveillance || {};
+      const pat = r.patient || fullCase.patient || {};
       const urg = r.urgency || { tone: 'neutral', label: 'Chưa đến hạn' };
       const sexLabel = pat.sex === 'F' ? 'Nữ' : (pat.sex === 'O' ? 'Khác' : 'Nam');
       const primaryPlan = surv.category === 'SURGICAL_MDT_CONSULT_ALERT'
@@ -727,27 +994,13 @@
         )
         : '';
 
-      const survPendingGpb = surv.status === 'PENDING_GPB' || r.pathology_completion_status === 'PENDING';
-      const canCreateLinked = !surv.fulfilled_by_case_id && !survPendingGpb && surv.category !== 'SURGICAL_MDT_CONSULT_ALERT';
-      const survActionsHtml = (
-        '<div class="el-card-actions">' +
-        (survPendingGpb
-          ? ('<button type="button" class="el-btn el-btn--compact action-btn-p4" data-case-edit="' + escapeHtml(r.case_id) + '" data-target-phase="p4">Nhập GPB (Pha 4)</button>')
-          : '') +
-        (canCreateLinked
-          ? ('<button type="button" class="el-btn el-btn--compact action-btn-link-surv" data-create-linked="' + escapeHtml(r.case_id) + '">Tạo ca soi lại liên kết</button>')
-          : '') +
-        '<button type="button" class="el-btn el-btn--compact action-btn-p2" data-case-edit="' + escapeHtml(r.case_id) + '" data-target-phase="p4">Mở ca gốc</button>' +
-        '</div>'
-      );
-
       return (
         '<article class="el-case-card">' +
         '<div class="el-case-top">' +
         '<div class="el-case-id-group">' +
-        renderProcChip(r.track) +
-        '<span class="el-case-code">' + escapeHtml(r.case_code) + '</span>' +
-        '<span class="el-case-meta">Ngày soi gốc: ' + escapeHtml(formatViDate(r.procedure_date)) + '</span>' +
+        renderProcChip(r.track || fullCase.track) +
+        '<span class="el-case-code">' + escapeHtml(r.case_code || fullCase.case_code) + '</span>' +
+        '<span class="el-case-meta">Ngày soi gốc: ' + escapeHtml(formatViDate(r.procedure_date || fullCase.procedure_start_at)) + '</span>' +
         '</div>' +
         renderStatusBadge(urg.tone, humanizeClinicalBadgeLabelVi(urg.label)) +
         '</div>' +
@@ -755,7 +1008,7 @@
         '<div class="el-case-col">' +
         '<p class="el-field-kicker">Người bệnh &amp; bệnh cảnh gốc</p>' +
         '<p class="el-field-primary">' + escapeHtml(pat.privacy_initials || '') + ' · ' + escapeHtml(pat.age) + ' tuổi (' + escapeHtml(sexLabel) + ')</p>' +
-        '<p class="el-field-secondary">' + escapeHtml(formatIndicationVi(r.indication_detail, '')) + '</p>' +
+        '<p class="el-field-secondary">' + escapeHtml(formatIndicationVi(r.indication_detail || fullCase.indication_detail, fullCase.indication || '')) + '</p>' +
         '</div>' +
         '<div class="el-case-col">' +
         '<p class="el-field-kicker">Quyết định hẹn soi lại / hội chẩn</p>' +
@@ -769,7 +1022,7 @@
         '<p class="el-field-muted">' + escapeHtml(surv.fulfilled_by_case_id ? 'Đã soi lại' : 'Đang theo dõi') + '</p>' +
         '</div>' +
         '</div>' +
-        survActionsHtml +
+        renderCaseProgressionBar(fullCase, 'surveillance') +
         '</article>'
       );
     }).join('');
@@ -1374,7 +1627,7 @@
   }
 
   function getActiveTopmostModalContainer() {
-    const subIds = ['el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop'];
+    const subIds = ['el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop', 'el-detail-modal-backdrop'];
     for (let i = 0; i < subIds.length; i += 1) {
       const wrap = byId(subIds[i]);
       if (wrap && !wrap.hidden) {
@@ -1395,11 +1648,13 @@
     const dirtyWrap = byId('el-dirty-modal-backdrop');
     const dupWrap = byId('el-dup-modal-backdrop');
     const vaultWrap = byId('el-vault-modal-backdrop');
+    const detailWrap = byId('el-detail-modal-backdrop');
 
     const anySubOpen = Boolean(
       (dirtyWrap && !dirtyWrap.hidden) ||
       (dupWrap && !dupWrap.hidden) ||
-      (vaultWrap && !vaultWrap.hidden)
+      (vaultWrap && !vaultWrap.hidden) ||
+      (detailWrap && !detailWrap.hidden)
     );
     const drawerOpen = Boolean(drawerWrap && !drawerWrap.hidden);
     const anyModalOpen = anySubOpen || drawerOpen;
@@ -1424,7 +1679,12 @@
 
   function handleGlobalModalKeydown(ev) {
     const activeContainer = getActiveTopmostModalContainer();
-    if (!activeContainer) return;
+    if (!activeContainer) {
+      if (ev.key === 'Escape') {
+        closeAllCardActionMenus();
+      }
+      return;
+    }
 
     if (ev.key === 'Escape') {
       ev.preventDefault();
@@ -1444,6 +1704,11 @@
       const vaultWrap = byId('el-vault-modal-backdrop');
       if (vaultWrap && !vaultWrap.hidden) {
         closeVaultModal();
+        return;
+      }
+      const detailWrap = byId('el-detail-modal-backdrop');
+      if (detailWrap && !detailWrap.hidden) {
+        closeCaseDetailModal(false);
         return;
       }
       requestCloseDrawer();
@@ -2217,8 +2482,205 @@
     syncModalInertAndFocusTrap();
   }
 
+  function closeAllCardActionMenus() {
+    if (typeof document.querySelectorAll !== 'function') return;
+    document.querySelectorAll('.el-action-menu-dropdown').forEach((menu) => {
+      menu.hidden = true;
+      menu.classList.remove('is-dropup');
+    });
+    document.querySelectorAll('.el-btn-more[aria-expanded="true"]').forEach((btn) => {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+    document.querySelectorAll('.el-case-card--menu-open').forEach((card) => {
+      card.classList.remove('el-case-card--menu-open');
+    });
+  }
+
+  function phaseStateBadgeTone(stateKey) {
+    if (stateKey === 'done') return 'ned';
+    if (stateKey === 'active') return 'due';
+    if (stateKey === 'pending') return 'pending';
+    if (stateKey === 'urgent') return 'urgent';
+    return 'neutral';
+  }
+
+  function formatAeListVi(adverseEvents) {
+    if (!Array.isArray(adverseEvents) || !adverseEvents.length) {
+      return 'Chưa ghi nhận biến cố nội soi';
+    }
+    return adverseEvents.map((ev) => {
+      const evType = AE_EVENT_TYPE_LABELS_VI[ev.event_type] || sanitizeEnumFallbackVi(ev.event_type, 'Biến cố nội soi');
+      const winTxt = AE_WINDOW_LABELS_VI[ev.window] || sanitizeEnumFallbackVi(ev.window, 'Sau thủ thuật');
+      const pepPart = ev.event_type === 'PEP' && ev.pep_severity && ev.pep_severity !== 'NONE'
+        ? (' (' + (PEP_SEVERITY_LABELS_VI[ev.pep_severity] || 'ghi nhận') + ')')
+        : '';
+      const agreePart = ev.agree_grade ? (' · Phân độ AGREE ' + sanitizeEnumFallbackVi(ev.agree_grade, 'II')) : '';
+      const notePart = ev.note ? (' — ' + sanitizeEnumFallbackVi(ev.note, '')) : '';
+      return evType + pepPart + ' [' + winTxt + ']' + agreePart + notePart;
+    }).join(' | ');
+  }
+
+  function openCaseDetailModal(caseId, triggerEl) {
+    if (!state.user) return;
+    const c = state.cases.find((item) => item.case_id === caseId);
+    if (!c) return;
+    const wrap = byId('el-detail-modal-backdrop');
+    const badgesEl = byId('el-detail-modal-badges');
+    const titleEl = byId('el-detail-modal-title');
+    const bodyEl = byId('el-detail-modal-body');
+    if (!wrap || !badgesEl || !titleEl || !bodyEl) return;
+
+    closeAllCardActionMenus();
+    detailModalState.isOpen = true;
+    detailModalState.caseId = c.case_id;
+    detailModalState.returnFocusEl = triggerEl || document.activeElement || null;
+
+    const pat = c.patient || {};
+    const epi = c.episode || {};
+    const surv = c.surveillance || {};
+    const idx = c.index_lesion || null;
+    const hl = describeTrackClinicalHighlights(c);
+    const prog = computeCasePhaseProgression(c);
+    const badgeObj = c.clinical_badge || { tone: 'neutral', label: 'Đang cập nhật' };
+    const settingLabel = c.care_setting === 'INPATIENT' ? 'Nội trú' : 'Ngoại trú';
+    const sexLabel = pat.sex === 'F' ? 'Nữ' : (pat.sex === 'O' ? 'Khác' : 'Nam');
+    const mrnPart = pat.hospital_mrn_masked ? (' · Mã HS: ' + pat.hospital_mrn_masked) : '';
+
+    badgesEl.innerHTML = (
+      renderProcChip(c.track) +
+      '<span class="el-case-code">' + escapeHtml(c.case_code || '') + '</span>' +
+      renderStatusBadge(badgeObj.tone, humanizeClinicalBadgeLabelVi(badgeObj.label))
+    );
+    titleEl.textContent = (pat.privacy_initials || '') + ' · ' + (pat.age != null ? (pat.age + ' tuổi') : '') + ' (' + sexLabel + ') — Diễn tiến theo dõi 4 pha';
+
+    const fu30Label = FOLLOWUP_30D_LABELS_VI[c.followup_30d_status] || 'Đang trong cửa sổ theo dõi 14–30 ngày';
+    const pathStatusLabel = PATH_STATUS_LABELS_VI[c.pathology_completion_status] || 'Không sinh thiết / không áp dụng';
+    const histSummary = idx && idx.histology_type
+      ? formatHistologyVi(idx.histology_type)
+      : pathStatusLabel;
+    const survPlanText = surv.category === 'SURGICAL_MDT_CONSULT_ALERT'
+      ? ('Chuyển hội chẩn ' + sanitizeEnumFallbackVi(surv.surgical_consult_target_dept || 'Ngoại khoa', 'Ngoại khoa'))
+      : ('Hẹn soi lại: ' + sanitizeEnumFallbackVi(surv.recommended_interval_label || 'Theo chỉ định', 'Theo chỉ định') + (surv.due_date ? (' · Dự kiến ' + formatViDate(surv.due_date)) : ''));
+    const primaryGuideLabel = formatGuidelineLabelVi(surv.guideline_id, false);
+    const refGuideText = surv.is_divergent_guideline
+      ? ('Đối chiếu ' + formatGuidelineLabelVi(surv.reference_guideline_id, true) + ': ' + sanitizeEnumFallbackVi(surv.reference_interval_label || '', ''))
+      : '';
+
+    const detailTrackPillsHtml = (
+      '<div class="el-phase-pill-cluster" role="group" aria-label="Chuyển nhanh pha từ cửa sổ chi tiết">' +
+      prog.phases.map((ph) => (
+        '<button type="button" class="el-phase-pill el-phase-pill--' + escapeHtml(ph.state) + '" ' +
+        'data-detail-jump-phase="' + escapeHtml(ph.key) + '" ' +
+        'title="' + escapeHtml(ph.title) + '" ' +
+        'aria-label="' + escapeHtml(ph.title) + '">' +
+        phasePillIconSvg(ph.state) +
+        '<span>' + escapeHtml(ph.code) + '</span>' +
+        '</button>'
+      )).join('') +
+      '</div>'
+    );
+
+    bodyEl.innerHTML = (
+      '<div class="el-detail-track-banner">' +
+      '<div class="el-detail-track-meta">' +
+      '<strong>' + escapeHtml(prog.nextStepLabel) + '</strong> · Phiên bản hồ sơ v' + escapeHtml(c.version || 1) + ' · Nội soi viên: ' + escapeHtml(c.operator_name || 'ThS. BSCKI. Nguyễn Bình An') +
+      '</div>' +
+      detailTrackPillsHtml +
+      '</div>' +
+      '<div class="el-detail-phase-grid">' +
+      '<section class="el-detail-phase-card">' +
+      '<div>' +
+      '<div class="el-detail-phase-head">' +
+      '<h4 class="el-detail-phase-title">Pha 1 · Hành chính &amp; chỉ định</h4>' +
+      renderStatusBadge(phaseStateBadgeTone(prog.p1.state), prog.p1.shortText) +
+      '</div>' +
+      '<div class="el-detail-kv-list">' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Thời điểm &amp; hình thức:</span> ' + escapeHtml(formatViDate(c.procedure_start_at)) + ' · ' + escapeHtml(settingLabel + mrnPart) + '</p>' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Khoa gửi:</span> ' + escapeHtml(sanitizeEnumFallbackVi(epi.referring_dept || 'Ngoại trú', 'Ngoại trú')) + '</p>' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Chỉ định lâm sàng:</span> ' + escapeHtml(formatIndicationVi(c.indication_detail, c.indication)) + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="el-detail-phase-foot"><button type="button" class="el-btn el-btn--compact" data-detail-jump-phase="p1">Sửa Pha 1</button></div>' +
+      '</section>' +
+
+      '<section class="el-detail-phase-card">' +
+      '<div>' +
+      '<div class="el-detail-phase-head">' +
+      '<h4 class="el-detail-phase-title">Pha 2 · Thông số kỹ thuật &amp; thủ thuật</h4>' +
+      renderStatusBadge(phaseStateBadgeTone(prog.p2.state), prog.p2.shortText) +
+      '</div>' +
+      '<div class="el-detail-kv-list">' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Đánh giá chính:</span> ' + escapeHtml(hl.title) + '</p>' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Chi tiết can thiệp:</span> ' + escapeHtml(hl.detail) + '</p>' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Nhận định lâm sàng:</span> ' + escapeHtml(sanitizeEnumFallbackVi(c.clinical_note || 'Chưa ghi chú bổ sung', 'Chưa ghi chú bổ sung')) + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="el-detail-phase-foot"><button type="button" class="el-btn el-btn--compact" data-detail-jump-phase="p2">Sửa Pha 2</button></div>' +
+      '</section>' +
+
+      '<section class="el-detail-phase-card">' +
+      '<div>' +
+      '<div class="el-detail-phase-head">' +
+      '<h4 class="el-detail-phase-title">Pha 3 · Biến cố 14–30 ngày</h4>' +
+      renderStatusBadge(phaseStateBadgeTone(prog.p3.state), prog.p3.shortText) +
+      '</div>' +
+      '<div class="el-detail-kv-list">' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Cửa sổ theo dõi:</span> ' + escapeHtml(fu30Label) + '</p>' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Biến cố ghi nhận:</span> ' + escapeHtml(formatAeListVi(c.adverse_events)) + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="el-detail-phase-foot"><button type="button" class="el-btn el-btn--compact" data-detail-jump-phase="p3">Sửa Pha 3</button></div>' +
+      '</section>' +
+
+      '<section class="el-detail-phase-card">' +
+      '<div>' +
+      '<div class="el-detail-phase-head">' +
+      '<h4 class="el-detail-phase-title">Pha 4 · Giải phẫu bệnh &amp; hẹn soi</h4>' +
+      renderStatusBadge(phaseStateBadgeTone(prog.p4.state), prog.p4.shortText) +
+      '</div>' +
+      '<div class="el-detail-kv-list">' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Tình trạng GPB:</span> ' + escapeHtml(pathStatusLabel) + (idx ? (' · ' + escapeHtml(histSummary)) : '') + '</p>' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Hướng xử trí:</span> ' + escapeHtml(survPlanText) + '</p>' +
+      '<p class="el-detail-kv-row"><span class="el-detail-kv-label">Hướng dẫn áp dụng:</span> ' + escapeHtml(primaryGuideLabel) + (refGuideText ? (' · ' + escapeHtml(refGuideText)) : '') + '</p>' +
+      (c.clinician_followup_note ? ('<p class="el-detail-kv-row"><span class="el-detail-kv-label">Dặn dò tái khám:</span> ' + escapeHtml(sanitizeEnumFallbackVi(c.clinician_followup_note, '')) + '</p>') : '') +
+      '</div>' +
+      '</div>' +
+      '<div class="el-detail-phase-foot"><button type="button" class="el-btn el-btn--compact" data-detail-jump-phase="p4">Sửa Pha 4</button></div>' +
+      '</section>' +
+      '</div>'
+    );
+
+    wrap.hidden = false;
+    syncModalInertAndFocusTrap();
+    const closeBtn = byId('el-btn-detail-close');
+    if (closeBtn && typeof closeBtn.focus === 'function') {
+      closeBtn.focus();
+    }
+  }
+
+  function closeCaseDetailModal(skipRestoreFocus) {
+    const wrap = byId('el-detail-modal-backdrop');
+    if (wrap) wrap.hidden = true;
+    detailModalState.isOpen = false;
+    detailModalState.caseId = null;
+    syncModalInertAndFocusTrap();
+    const ret = detailModalState.returnFocusEl;
+    detailModalState.returnFocusEl = null;
+    if (!skipRestoreFocus && ret && typeof ret.focus === 'function' && state.user) {
+      try {
+        ret.focus();
+      } catch (_err) {
+        /* ignore */
+      }
+    }
+  }
+
   function forceWipeAllModalsAndForms() {
     stopWithdrawalStopwatch();
+    closeAllCardActionMenus();
+    detailModalState.isOpen = false;
+    detailModalState.caseId = null;
+    detailModalState.returnFocusEl = null;
     drawerState.isOpen = false;
     drawerState.mode = 'create';
     drawerState.editingCaseId = null;
@@ -2249,7 +2711,7 @@
       if (inp) inp.value = '';
     });
 
-    ['el-ae-list', 'el-dup-candidates', 'el-patient-readonly-box'].forEach((id) => {
+    ['el-ae-list', 'el-dup-candidates', 'el-patient-readonly-box', 'el-detail-modal-badges', 'el-detail-modal-body'].forEach((id) => {
       const node = byId(id);
       if (node) {
         if (typeof node.replaceChildren === 'function') {
@@ -2264,9 +2726,11 @@
       const node = byId(id);
       if (node) node.textContent = '';
     });
+    const dTitle = byId('el-detail-modal-title');
+    if (dTitle) dTitle.textContent = 'Hồ sơ diễn tiến 4 pha';
 
     setDrawerAlert('');
-    ['el-case-drawer-backdrop', 'el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop'].forEach((id) => {
+    ['el-case-drawer-backdrop', 'el-dirty-modal-backdrop', 'el-dup-modal-backdrop', 'el-vault-modal-backdrop', 'el-detail-modal-backdrop'].forEach((id) => {
       const el = byId(id);
       if (el) el.hidden = true;
     });
@@ -3233,21 +3697,103 @@
       if (!container) return;
       container.addEventListener('click', (ev) => {
         if (!state.user || !ev.target || typeof ev.target.closest !== 'function') return;
+
+        const moreBtn = ev.target.closest('[data-case-more]');
+        if (moreBtn) {
+          ev.stopPropagation();
+          const wrap = moreBtn.closest('.el-action-menu-wrap');
+          const menu = wrap ? wrap.querySelector('.el-action-menu-dropdown') : null;
+          if (!menu) return;
+          const willOpen = menu.hidden;
+          closeAllCardActionMenus();
+          if (willOpen) {
+            const rect = moreBtn.getBoundingClientRect();
+            const menuApproxHeight = 290;
+            const bottomNavReserve = window.innerWidth < 768 ? 76 : 20;
+            const shouldDropup = (window.innerHeight - rect.bottom) < (menuApproxHeight + bottomNavReserve) && rect.top > menuApproxHeight;
+            menu.classList.toggle('is-dropup', shouldDropup);
+            menu.hidden = false;
+            moreBtn.setAttribute('aria-expanded', 'true');
+            const parentCard = moreBtn.closest('.el-case-card');
+            if (parentCard) parentCard.classList.add('el-case-card--menu-open');
+          }
+          return;
+        }
+
+        const detailBtn = ev.target.closest('[data-case-detail]');
+        if (detailBtn) {
+          const cid = detailBtn.getAttribute('data-case-detail');
+          closeAllCardActionMenus();
+          openCaseDetailModal(cid, detailBtn);
+          return;
+        }
+
+        const dangerBtn = ev.target.closest('[data-danger-case]');
+        if (dangerBtn) {
+          const cid = dangerBtn.getAttribute('data-danger-case');
+          closeAllCardActionMenus();
+          openEditCaseDrawer(cid, 'p4', dangerBtn);
+          const dz = byId('el-danger-zone');
+          if (dz && !dz.hidden) dz.open = true;
+          return;
+        }
+
         const editBtn = ev.target.closest('[data-case-edit]');
         if (editBtn) {
           const cid = editBtn.getAttribute('data-case-edit');
           const phase = editBtn.getAttribute('data-target-phase') || 'p2';
+          closeAllCardActionMenus();
           openEditCaseDrawer(cid, phase, editBtn);
           return;
         }
+
         const linkBtn = ev.target.closest('[data-create-linked]');
         if (linkBtn) {
           const originId = linkBtn.getAttribute('data-create-linked');
           const originCase = state.cases.find((item) => item.case_id === originId) || null;
+          closeAllCardActionMenus();
           openNewCaseDrawer((originCase && originCase.track) || 'COL', originCase, linkBtn);
         }
       });
     });
+
+    ['el-btn-detail-close', 'el-btn-detail-close-foot'].forEach((btnId) => {
+      const btn = byId(btnId);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          closeCaseDetailModal(false);
+        });
+      }
+    });
+
+    const detailBackdrop = byId('el-detail-modal-backdrop');
+    if (detailBackdrop) {
+      detailBackdrop.addEventListener('click', (ev) => {
+        if (ev.target === detailBackdrop) {
+          closeCaseDetailModal(false);
+          return;
+        }
+        if (ev.target && typeof ev.target.closest === 'function') {
+          const jumpBtn = ev.target.closest('[data-detail-jump-phase]');
+          if (jumpBtn && detailModalState.caseId) {
+            const targetCid = detailModalState.caseId;
+            const targetPhase = jumpBtn.getAttribute('data-detail-jump-phase') || 'p1';
+            const retFocus = detailModalState.returnFocusEl;
+            closeCaseDetailModal(true);
+            openEditCaseDrawer(targetCid, targetPhase, retFocus);
+          }
+        }
+      });
+    }
+
+    if (typeof document.addEventListener === 'function') {
+      document.addEventListener('click', (ev) => {
+        if (!ev.target || typeof ev.target.closest !== 'function') return;
+        if (!ev.target.closest('.el-action-menu-wrap')) {
+          closeAllCardActionMenus();
+        }
+      });
+    }
 
     ['el-drawer-close', 'el-btn-cancel-drawer'].forEach((btnId) => {
       const btn = byId(btnId);
@@ -3677,6 +4223,7 @@
   window.__ENDOLOG_RUNTIME_AUDIT__ = {
     evaluateKpiRateBadge,
     evaluateAdverseEventKpiBadge,
+    computeCasePhaseProgression,
     formatGuidelineLabelVi,
     formatRaCusumStatusVi,
     formatIndicationVi,
@@ -3708,6 +4255,7 @@
         hasIdleTimer: state.idleTimer !== null,
         hasHardExpiryTimer: state.hardExpiryTimer !== null,
         isDrawerOpen: Boolean(drawerState.isOpen),
+        isDetailModalOpen: Boolean(detailModalState.isOpen),
         isDirty: Boolean(drawerState.isDirty),
         aeDraftCount: drawerState.aeItems.length,
         hasPendingDuplicatePayload: drawerState.pendingCreatePayload !== null,

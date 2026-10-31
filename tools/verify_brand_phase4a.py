@@ -355,7 +355,11 @@ def main() -> int:
                 const headBtns = Array.from(document.querySelectorAll('#el-view-cases .el-section-head button'));
                 const headPrimaryBtns = headBtns.length;
                 const headNewCaseOk = headBtns.length === 0 || (headBtns.length === 1 && headBtns[0].id === 'el-btn-new-case' && headBtns[0].classList.contains('el-btn--primary'));
-                const anyPrimaryBtnsInCases = document.querySelectorAll('#el-view-cases .el-btn--primary').length;
+                const toolbarPrimaryBtns = document.querySelectorAll('#el-view-cases .el-btn--primary:not(#el-case-list .el-btn--primary)').length;
+                const maxCardPrimaryBtns = Array.from(document.querySelectorAll('#el-case-list .el-case-card')).reduce(
+                    (mx, card) => Math.max(mx, card.querySelectorAll('.el-btn--primary').length),
+                    0
+                );
                 const exportBtn = document.getElementById('el-btn-export-csv');
                 const exportInExportBar = !!(exportBtn && exportBtn.closest('.el-export-bar'));
                 const exportIsOutlined = !!(exportBtn && !exportBtn.classList.contains('el-btn--primary'));
@@ -372,7 +376,8 @@ def main() -> int:
                 return {
                     headPrimaryBtns,
                     headNewCaseOk,
-                    anyPrimaryBtnsInCases,
+                    toolbarPrimaryBtns,
+                    maxCardPrimaryBtns,
                     exportInExportBar,
                     exportIsOutlined,
                     statCardCount: statCards.length,
@@ -383,8 +388,8 @@ def main() -> int:
                 };
             }"""
         )
-        if not r4_metrics["headNewCaseOk"] or r4_metrics["anyPrimaryBtnsInCases"] > 1:
-            r4_errs.append(f"Đầu trang Nhật ký ca soi sai cấu trúc nút chính duy nhất (#el-btn-new-case): {r4_metrics}")
+        if not r4_metrics["headNewCaseOk"] or r4_metrics["toolbarPrimaryBtns"] > 1 or r4_metrics["maxCardPrimaryBtns"] > 1:
+            r4_errs.append(f"Đầu trang Nhật ký ca soi sai cấu trúc nút chính (#el-btn-new-case duy nhất trên thanh công cụ, tối đa 1 CTA bước tiếp/thẻ): {r4_metrics}")
         if not r4_metrics["exportInExportBar"] or not r4_metrics["exportIsOutlined"]:
             r4_errs.append(f"Nút Xuất bảng nghiên cứu chưa chuyển thành nút phụ trong khu Xuất dữ liệu: {r4_metrics}")
         if r4_metrics["statCardCount"] != 4 or r4_metrics["distinctTopCount"] != 1 or not r4_metrics["subHidden"]:

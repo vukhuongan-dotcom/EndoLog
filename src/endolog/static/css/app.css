@@ -1013,17 +1013,224 @@ body {
   background-color: var(--bg-sunken);
 }
 
-/* Hàng nút tác vụ ngữ nghĩa trên từng thẻ ca soi & hẹn soi lại (không dùng nth-child) */
-.el-card-actions {
+/* Cụm diễn tiến 4 pha & hàng nút tác vụ chuẩn SurgiLog trên từng thẻ ca soi (không dùng nth-child) */
+.el-case-card--menu-open {
+  position: relative;
+  z-index: 25;
+}
+
+.el-card-progression-bar {
   margin-top: 12px;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px dashed var(--border);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
+}
+
+.el-phase-summary-meta {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.el-phase-summary-kicker {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-heading);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.el-phase-summary-count {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.el-phase-summary-detail {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.el-action-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.el-action-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.el-action-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.el-btn-more {
+  padding: 6px 10px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.el-action-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 45;
+  width: 252px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.el-action-menu-dropdown[hidden] {
+  display: none;
+}
+
+.el-action-menu-dropdown.is-dropup {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.el-action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.el-action-menu-item:hover {
+  background-color: var(--bg-sunken);
+  color: var(--text-heading);
+}
+
+.el-action-menu-item--danger {
+  color: var(--clinical-urgent);
+}
+
+.el-action-menu-item--danger:hover {
+  background-color: var(--bg-sunken);
+  color: var(--clinical-urgent);
+}
+
+.el-action-menu-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background-color: var(--border);
+}
+
+/* Thanh 4 phân đoạn tiến độ P1 | P2 | P3 | P4 liền khối kiểu SurgiLog (vùng chạm >= 44x44 px) */
+.el-phase-pill-cluster {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(66px, 1fr));
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.el-phase-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.el-phase-pill:first-child {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.el-phase-pill:last-child {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.el-phase-pill:focus-visible {
+  z-index: 2;
+}
+
+.el-phase-pill-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.el-phase-pill--done {
+  background-color: var(--primary-fill);
+  color: var(--on-primary);
+}
+
+.el-phase-pill--pending {
+  background-color: var(--bg-sunken);
+  color: var(--text-main);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.el-phase-pill--active {
+  background-color: var(--primary-soft);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.el-phase-pill--urgent {
+  background-color: var(--bg-card);
+  color: var(--clinical-urgent);
+  box-shadow: inset 0 0 0 1.5px var(--clinical-urgent);
+}
+
+.el-phase-pill--na {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 /* Khối cấu hình chuyên môn & ngưỡng thống kê trên màn Chỉ số chất lượng */
@@ -1657,6 +1864,129 @@ body {
   font-size: var(--text-xs);
 }
 
+.el-detail-modal {
+  max-width: 780px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.el-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.el-detail-head-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.el-detail-head-meta .el-submodal-title {
+  margin: 0;
+}
+
+.el-detail-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.el-detail-track-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-sunken);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.el-detail-track-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.el-detail-phase-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.el-detail-phase-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.el-detail-phase-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.el-detail-phase-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.el-detail-kv-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.el-detail-kv-row {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-main);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.el-detail-kv-label {
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.el-detail-phase-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
 @media (max-width: 960px) {
   .el-settings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1680,18 +2010,45 @@ body {
   }
   .el-field-grid--2,
   .el-field-grid--3,
-  .el-settings-grid {
+  .el-settings-grid,
+  .el-detail-phase-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   .el-field-grid--4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .el-card-actions {
+  .el-card-progression-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .el-phase-summary-meta {
+    flex: 0 0 auto;
+  }
+  .el-action-cluster {
+    width: 100%;
+    align-items: stretch;
+  }
+  .el-action-buttons-row {
     justify-content: flex-start;
+  }
+  .el-phase-pill-cluster {
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .el-detail-modal {
+    padding: 16px 14px;
   }
 }
 
 @media (max-width: 359px) {
+  .el-case-card {
+    padding: 12px;
+  }
+  .el-phase-pill {
+    padding: 6px 4px;
+    gap: 3px;
+  }
   .el-field-grid--4 {
     grid-template-columns: minmax(0, 1fr);
   }

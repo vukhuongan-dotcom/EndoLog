@@ -1,7 +1,7 @@
 {
   "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
-  "generated_at_utc": "2026-10-31T09:51:44+00:00",
-  "version": "0.2.0",
+  "generated_at_utc": "2026-10-31T10:26:16+00:00",
+  "version": "0.2.1",
   "overall_status": "PASS",
   "ergonomic_click_budget_proxy": {
     "clicks_negative_col": 3,
@@ -22,12 +22,12 @@
     }
   },
   "touch_target_audit": {
-    "interactive_elements_verified": 704,
+    "interactive_elements_verified": 832,
     "sub_44px_violations": 0
   },
   "wcag_contrast_audit": {
     "design_token_pairs_passed": 62,
-    "live_dom_elements_checked": 198
+    "live_dom_elements_checked": 320
   },
   "zero_phi_5_layer_audit": {
     "localStorage_keys": [
@@ -36,7 +36,7 @@
     "sessionStorage_keys_post_wipe": 0,
     "indexedDB_count": 0,
     "cached_static_urls_count": 14,
-    "api_responses_checked_no_store": 65,
+    "api_responses_checked_no_store": 64,
     "open_drawer_idle_wipe": {
       "drawerHidden": true,
       "fullNameVal": "",
@@ -57,7 +57,8 @@
       "bieu_mau_ca_soi_1440_light.png",
       "bieu_mau_ercp_1440_light.png",
       "bieu_mau_ca_soi_390_light.png",
-      "bieu_mau_ca_soi_1440_dark.png"
+      "bieu_mau_ca_soi_1440_dark.png",
+      "chi_tiet_4_pha_1440_light.png"
     ]
   },
   "measurement_caveats_vi": [

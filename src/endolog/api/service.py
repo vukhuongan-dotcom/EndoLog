@@ -230,6 +230,18 @@ class EndoLogService:
             rec["rec_id"] = f"rec_{case_id}"
             surveillance[case_id] = rec
 
+            if req.fulfill_surveillance_rec_id:
+                for origin_cid, s_obj in surveillance.items():
+                    if (
+                        origin_cid != case_id
+                        and (
+                            s_obj.get("rec_id") == req.fulfill_surveillance_rec_id
+                            or origin_cid == req.fulfill_surveillance_rec_id
+                        )
+                    ):
+                        s_obj["fulfilled_by_case_id"] = case_id
+                        s_obj["status"] = "COMPLETED_LINKED"
+
             state["audit_chain"].append(
                 build_audit_entry(
                     state["audit_chain"],
@@ -270,6 +282,12 @@ class EndoLogService:
             now_iso = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
             changed_fields: list[str] = []
             for field_name in (
+                "procedure_start_at",
+                "prior_unrecorded_ercp_offset",
+                "indication",
+                "indication_detail",
+                "has_ibd_or_polyposis",
+                "exclude_from_cir",
                 "pathology_completion_status",
                 "followup_30d_status",
                 "clinician_followup_due_date",
@@ -278,6 +296,7 @@ class EndoLogService:
                 "bbps_transverse",
                 "bbps_left",
                 "cecal_intubation",
+                "cecal_failure_reason",
                 "withdrawal_time_clean_min",
                 "clinical_note",
             ):
@@ -285,6 +304,14 @@ class EndoLogService:
                 if val is not None:
                     rec_case[field_name] = val
                     changed_fields.append(field_name)
+
+            epi_obj = state["episodes"].get(rec_case["episode_id"])
+            if epi_obj is not None:
+                if patch.referring_dept is not None:
+                    epi_obj["referring_dept"] = patch.referring_dept
+                    changed_fields.append("referring_dept")
+                if patch.prior_unrecorded_ercp_offset is not None and epi_obj.get("care_setting") == "INPATIENT":
+                    epi_obj["prior_unrecorded_ercp_offset"] = patch.prior_unrecorded_ercp_offset
 
             if patch.index_lesion is not None:
                 rec_case["index_lesion"] = patch.index_lesion.model_dump()
@@ -483,7 +510,12 @@ class EndoLogService:
             "episode": {
                 "episode_id": epi.get("episode_id"),
                 "care_setting": epi.get("care_setting"),
+                "admission_date": epi.get("admission_date"),
                 "referring_dept": epi.get("referring_dept"),
+                "prior_unrecorded_ercp_offset": epi.get(
+                    "prior_unrecorded_ercp_offset",
+                    case.get("prior_unrecorded_ercp_offset", 0),
+                ),
             },
             "bbps": bbps_info,
             "adverse_summary": ae_info,

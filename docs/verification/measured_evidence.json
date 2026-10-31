@@ -1,0 +1,67 @@
+{
+  "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
+  "generated_at_utc": "2026-10-31T09:51:44+00:00",
+  "version": "0.2.0",
+  "overall_status": "PASS",
+  "ergonomic_click_budget_proxy": {
+    "clicks_negative_col": 3,
+    "budget_negative_col_max": 8,
+    "clicks_col_index_lesion": 6,
+    "budget_col_index_lesion_max": 18,
+    "clicks_egd_esd": 9,
+    "budget_egd_esd_max": 18,
+    "clicks_ercp_difficult": 11,
+    "budget_ercp_max": 32
+  },
+  "viewport_and_mobile_budget": {
+    "viewport_combinations_checked": 80,
+    "mobile_390_first_case_top_y_px": 395.1,
+    "negative_probe_640px": {
+      "detected": true,
+      "restored": true
+    }
+  },
+  "touch_target_audit": {
+    "interactive_elements_verified": 704,
+    "sub_44px_violations": 0
+  },
+  "wcag_contrast_audit": {
+    "design_token_pairs_passed": 62,
+    "live_dom_elements_checked": 198
+  },
+  "zero_phi_5_layer_audit": {
+    "localStorage_keys": [
+      "endolog_theme"
+    ],
+    "sessionStorage_keys_post_wipe": 0,
+    "indexedDB_count": 0,
+    "cached_static_urls_count": 14,
+    "api_responses_checked_no_store": 65,
+    "open_drawer_idle_wipe": {
+      "drawerHidden": true,
+      "fullNameVal": "",
+      "mrnVal": "",
+      "caseCardsLeft": 0,
+      "shellInert": false,
+      "ssLen": 0
+    }
+  },
+  "runtime_and_audit_chain": {
+    "unexpected_console_error_count": 0,
+    "expected_guard_4xx_network_logs_count": 4,
+    "pageerror_count": 0,
+    "http_5xx_count": 0,
+    "audit_chain_valid": true,
+    "audit_entries_verified": 18,
+    "drawer_screenshots_captured": [
+      "bieu_mau_ca_soi_1440_light.png",
+      "bieu_mau_ercp_1440_light.png",
+      "bieu_mau_ca_soi_390_light.png",
+      "bieu_mau_ca_soi_1440_dark.png"
+    ]
+  },
+  "measurement_caveats_vi": [
+    "Số lượt thao tác (click-budget proxy) đo tự động bằng Playwright cho các bước bấm nút/chọn trường cấu trúc (không tính gõ ký tự họ tên/năm sinh/mã HS); bấm giờ thực nghiệm lâm sàng tại phòng soi sẽ thực hiện bởi ThS. BSCKI. Nguyễn Bình An.",
+    "Chưa triển khai lên máy chủ sản xuất — dừng nghiêm ngặt tại biên giới Gate C theo Rule v2:R01."
+  ]
+}

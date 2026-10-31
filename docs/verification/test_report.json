@@ -1,0 +1,126 @@
+{
+  "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
+  "generated_at_utc": "2026-10-31T09:51:44+00:00",
+  "version": "0.2.0",
+  "overall_status": "PASS",
+  "gates_passed": 8,
+  "gates_total": 8,
+  "gates": {
+    "GATE_2_PYTEST_SUITE": {
+      "title": "Kiểm thử đơn vị, động cơ y khoa, bảo mật fail-closed & hồi quy B01–B04 / Phase 4B",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "exit_code": 0,
+        "passed_tests": 24,
+        "duration_sec": 3.68
+      }
+    },
+    "GATE_1_SYNTAX_BRAND_AND_ENUM_LOCK": {
+      "title": "Cú pháp Python/JS, khóa cứng tokens.css, 0 màu/emoji/Google Fonts & 0 mã UPPER_SNAKE_CASE trên 3 màn + 4 pha x 3 phân hệ",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "python_files_compiled": 20,
+        "static_files_scanned": 8,
+        "tokens_css_git_diff_bytes": 0,
+        "dom_upper_snake_hits": 0
+      }
+    },
+    "GATE_4_MULTIVIEWPORT_AND_MOBILE_BUDGET": {
+      "title": "Chống tràn ngang 10 độ rộng (320..1440 px) x Sáng/Tối trên 3 màn + ngăn kéo mở, probe âm tính 640px & firstCaseY <= 700px",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "viewport_combinations_checked": 80,
+        "mobile_390_first_case_top_y_px": 395.1,
+        "negative_probe_640px": {
+          "detected": true,
+          "restored": true
+        }
+      }
+    },
+    "GATE_5_TOUCH_TARGETS_44PX": {
+      "title": "100% điều khiển tương tác hiển thị đạt vùng chạm tối thiểu >= 44x44 px (3 màn + ngăn kéo 4 pha x 3 phân hệ)",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "interactive_elements_verified": 704,
+        "sub_44px_violations": 0
+      }
+    },
+    "GATE_6_WCAG_AA_CONTRAST": {
+      "title": "Tương phản màu WCAG 2.1 AA đạt 62/62 cặp token thiết kế & kiểm chứng alpha-composited trực tiếp trên DOM",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "design_token_pairs_passed": 62,
+        "live_dom_elements_checked": 198
+      }
+    },
+    "GATE_3_ERGONOMICS_AND_4PHASE_WORKFLOWS": {
+      "title": "Ngân sách thao tác (COL âm=3<=8, COL polyp=6<=18, EGD ESD=9<=18, ERCP=11<=32) & luồng 4 pha không khóa tuần tự + OCC/DLP/OD-04/DirtyGuard",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "clicks_negative_col": 3,
+        "budget_negative_col_max": 8,
+        "clicks_col_index_lesion": 6,
+        "budget_col_index_lesion_max": 18,
+        "clicks_egd_esd": 9,
+        "budget_egd_esd_max": 18,
+        "clicks_ercp_difficult": 11,
+        "budget_ercp_max": 32
+      }
+    },
+    "GATE_7_ZERO_PHI_5_LAYERS": {
+      "title": "Tuân thủ Zero-PHI 5 tầng sau thêm/sửa/liên kết ca soi & xóa trắng ngăn kéo đang nhập dở khi hết hạn phiên",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "localStorage_keys": [
+          "endolog_theme"
+        ],
+        "sessionStorage_keys_post_wipe": 0,
+        "indexedDB_count": 0,
+        "cached_static_urls_count": 14,
+        "api_responses_checked_no_store": 65,
+        "open_drawer_idle_wipe": {
+          "drawerHidden": true,
+          "fullNameVal": "",
+          "mrnVal": "",
+          "caseCardsLeft": 0,
+          "shellInert": false,
+          "ssLen": 0
+        }
+      }
+    },
+    "GATE_8_RUNTIME_AND_AUDIT_CHAIN": {
+      "title": "0 lỗi console/pageerror/5xx trong suốt phiên E2E & chuỗi kiểm toán tuyến tính SHA-256 toàn vẹn",
+      "status": "PASS",
+      "error_count": 0,
+      "errors": [],
+      "metrics": {
+        "unexpected_console_error_count": 0,
+        "expected_guard_4xx_network_logs_count": 4,
+        "pageerror_count": 0,
+        "http_5xx_count": 0,
+        "audit_chain_valid": true,
+        "audit_entries_verified": 18,
+        "drawer_screenshots_captured": [
+          "bieu_mau_ca_soi_1440_light.png",
+          "bieu_mau_ercp_1440_light.png",
+          "bieu_mau_ca_soi_390_light.png",
+          "bieu_mau_ca_soi_1440_dark.png"
+        ]
+      }
+    }
+  }
+}

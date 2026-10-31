@@ -352,7 +352,9 @@ def main() -> int:
         page.wait_for_timeout(120)
         r4_metrics = page.evaluate(
             """() => {
-                const headPrimaryBtns = document.querySelectorAll('#el-view-cases .el-section-head button').length;
+                const headBtns = Array.from(document.querySelectorAll('#el-view-cases .el-section-head button'));
+                const headPrimaryBtns = headBtns.length;
+                const headNewCaseOk = headBtns.length === 0 || (headBtns.length === 1 && headBtns[0].id === 'el-btn-new-case' && headBtns[0].classList.contains('el-btn--primary'));
                 const anyPrimaryBtnsInCases = document.querySelectorAll('#el-view-cases .el-btn--primary').length;
                 const exportBtn = document.getElementById('el-btn-export-csv');
                 const exportInExportBar = !!(exportBtn && exportBtn.closest('.el-export-bar'));
@@ -369,6 +371,7 @@ def main() -> int:
                 const firstCaseY = firstCardRect ? Math.round((firstCardRect.top + window.scrollY) * 10) / 10 : 9999;
                 return {
                     headPrimaryBtns,
+                    headNewCaseOk,
                     anyPrimaryBtnsInCases,
                     exportInExportBar,
                     exportIsOutlined,
@@ -380,8 +383,8 @@ def main() -> int:
                 };
             }"""
         )
-        if r4_metrics["headPrimaryBtns"] != 0 or r4_metrics["anyPrimaryBtnsInCases"] != 0:
-            r4_errs.append(f"Đầu trang Nhật ký ca soi vẫn còn nút chính chưa để trống cho Phase 4B: {r4_metrics}")
+        if not r4_metrics["headNewCaseOk"] or r4_metrics["anyPrimaryBtnsInCases"] > 1:
+            r4_errs.append(f"Đầu trang Nhật ký ca soi sai cấu trúc nút chính duy nhất (#el-btn-new-case): {r4_metrics}")
         if not r4_metrics["exportInExportBar"] or not r4_metrics["exportIsOutlined"]:
             r4_errs.append(f"Nút Xuất bảng nghiên cứu chưa chuyển thành nút phụ trong khu Xuất dữ liệu: {r4_metrics}")
         if r4_metrics["statCardCount"] != 4 or r4_metrics["distinctTopCount"] != 1 or not r4_metrics["subHidden"]:
@@ -391,7 +394,7 @@ def main() -> int:
         report_gate(
             "MOBILE_390_FIRST_CASE_Y",
             r4_errs,
-            f"firstCaseCardTopY={r4_metrics['firstCaseY']}px (<= 700px target, viewport=390x844) · 1-row 4-cell KPI (tops={r4_metrics['statTops']}) · headerButtons=0 · exportOutlinedInExportBar=True",
+            f"firstCaseCardTopY={r4_metrics['firstCaseY']}px (<= 700px target, viewport=390x844) · 1-row 4-cell KPI (tops={r4_metrics['statTops']}) · headerPrimaryNewCase={r4_metrics['headPrimaryBtns']} · exportOutlinedInExportBar=True",
             failures,
         )
 
@@ -480,12 +483,12 @@ def main() -> int:
                             touch_errs.append(
                                 f"{theme_mode}/{width}px/{view_key} <{it['tag']}#{it['id']} '{it['text']}'> = {it['w']}x{it['h']}px"
                             )
-        if per_theme_counts["light"] != 58 or per_theme_counts["dark"] != 58:
-            touch_errs.append(f"Số lượng vùng chạm mỗi chế độ thay đổi so với chuẩn 58/58: {per_theme_counts}")
+        if per_theme_counts["light"] != per_theme_counts["dark"] or per_theme_counts["light"] < 58:
+            touch_errs.append(f"Số lượng vùng chạm không đồng nhất giữa Sáng/Tối hoặc thiếu phần tử (<58): {per_theme_counts}")
         report_gate(
             "TOUCH_TARGETS_44PX",
             touch_errs,
-            f"58/58 vùng chạm Sáng + 58/58 vùng chạm Tối ({checked_targets}/{checked_targets} tổng lượt kiểm tra >= 44x44 px trên 390/1440 px × 3 màn)",
+            f"{per_theme_counts['light']}/{per_theme_counts['light']} vùng chạm Sáng + {per_theme_counts['dark']}/{per_theme_counts['dark']} vùng chạm Tối ({checked_targets}/{checked_targets} tổng lượt kiểm tra >= 44x44 px trên 390/1440 px × 3 màn)",
             failures,
         )
 

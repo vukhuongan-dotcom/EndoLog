@@ -226,6 +226,7 @@ class CaseCreateRequest(BaseModel):
     ercp_detail: ErcpProcedureDetail | None = None
     adverse_events: list[AdverseEventRecord] = Field(default_factory=list)
     clinical_note: str = ""
+    fulfill_surveillance_rec_id: str | None = None
 
     @model_validator(mode="after")
     def validate_clinical_invariants(self) -> "CaseCreateRequest":
@@ -245,6 +246,13 @@ class CasePhasePatchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     expected_version: int = Field(..., ge=1)
+    procedure_start_at: str | None = None
+    referring_dept: str | None = None
+    prior_unrecorded_ercp_offset: int | None = Field(default=None, ge=0, le=20)
+    indication: ColoIndicationType | None = None
+    indication_detail: str | None = None
+    has_ibd_or_polyposis: bool | None = None
+    exclude_from_cir: bool | None = None
     pathology_completion_status: PathologyCompletionType | None = None
     followup_30d_status: Followup30dStatusType | None = None
     clinician_followup_due_date: str | None = None
@@ -253,6 +261,7 @@ class CasePhasePatchRequest(BaseModel):
     bbps_transverse: int | None = Field(default=None, ge=0, le=3)
     bbps_left: int | None = Field(default=None, ge=0, le=3)
     cecal_intubation: Literal["NA", "YES", "NO"] | None = None
+    cecal_failure_reason: str | None = None
     withdrawal_time_clean_min: float | None = Field(default=None, ge=0, le=180)
     index_lesion: IndexLesion | None = None
     whole_case_summary: WholeCasePolypSummary | None = None

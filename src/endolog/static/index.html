@@ -8,9 +8,9 @@
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/css/fonts.css?v=0.1.0-alpha.3">
-  <link rel="stylesheet" href="/css/tokens.css?v=0.1.0-alpha.3">
-  <link rel="stylesheet" href="/css/app.css?v=0.1.0-alpha.3">
+  <link rel="stylesheet" href="/css/fonts.css?v=0.2.0">
+  <link rel="stylesheet" href="/css/tokens.css?v=0.2.0">
+  <link rel="stylesheet" href="/css/app.css?v=0.2.0">
 </head>
 <body>
   <!-- Màn hình đăng nhập (Zero-Image, tên đầy đủ tiếng Việt) -->
@@ -161,12 +161,18 @@
     <main class="el-main">
       <!-- MÀN HÌNH 1: NHẬT KÝ CA SOI -->
       <section id="el-view-cases" aria-labelledby="el-title-cases">
-        <div class="el-section-head">
-          <div>
+        <div class="el-section-head el-section-head--cases">
+          <div class="el-section-head-main">
             <h1 id="el-title-cases" class="el-section-title">Nhật ký ca soi</h1>
             <p class="el-section-desc">Ghi nhận cuốn chiếu 4 pha không khóa tuần tự — Khoa Nội soi Tiêu hóa, Bệnh viện Bình Dân</p>
           </div>
-          <!-- Vị trí nút hành động chính để trống dành cho "Thêm ca soi" tại Phase 4B -->
+          <button type="button" id="el-btn-new-case" class="el-btn el-btn--primary">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Thêm ca soi</span>
+          </button>
         </div>
 
         <div id="el-cases-summary" class="el-summary-grid"></div>
@@ -185,17 +191,42 @@
 
         <div class="el-export-bar" role="region" aria-label="Xuất dữ liệu nghiên cứu">
           <div class="el-export-meta">
-            <span class="el-export-title">Xuất dữ liệu</span>
-            <span class="el-export-desc">Xuất bảng nghiên cứu giả danh hóa dọc theo hợp đồng hồ sơ B (CSV)</span>
+            <span class="el-export-title">Xuất dữ liệu &amp; sao lưu</span>
+            <span class="el-export-desc">Hồ sơ B giả danh dọc (CSV/XLSX) · Hồ sơ C tổng hợp ẩn ô nhỏ &lt; 5 · Hồ sơ A sao lưu mã hóa (.enc)</span>
           </div>
-          <button type="button" id="el-btn-export-csv" class="el-btn">
-            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            <span>Xuất bảng nghiên cứu (hồ sơ B)</span>
-          </button>
+          <div class="el-export-actions">
+            <button type="button" id="el-btn-export-csv" class="el-btn">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Xuất bảng nghiên cứu (hồ sơ B)</span>
+            </button>
+            <button type="button" id="el-btn-export-xlsx" class="el-btn">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+              </svg>
+              <span>Hồ sơ B (XLSX)</span>
+            </button>
+            <button type="button" id="el-btn-export-profile-c" class="el-btn">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              <span>Báo cáo tổng hợp (hồ sơ C)</span>
+            </button>
+            <button type="button" id="el-btn-open-vault-backup" class="el-btn">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span>Sao lưu mã hóa (hồ sơ A)</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -247,6 +278,40 @@
         </div>
 
         <div id="el-audit-strip" class="el-audit-strip"></div>
+
+        <div class="el-settings-panel" role="region" aria-labelledby="el-settings-heading">
+          <div class="el-settings-head">
+            <div>
+              <h2 id="el-settings-heading" class="el-chart-title">Cấu hình chuyên môn &amp; ngưỡng thống kê</h2>
+              <p class="el-chart-disclaimer">Áp dụng tức thì cho khuyến cáo hẹn soi lại, cỡ mẫu tối thiểu cá nhân và tham số đường cong kiểm soát chất lượng</p>
+            </div>
+            <span id="el-settings-feedback" class="el-settings-feedback" aria-live="polite"></span>
+          </div>
+          <div class="el-settings-grid">
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-setting-guideline">Hướng dẫn hậu cắt polyp mặc định</label>
+              <select id="el-setting-guideline" class="el-form-input"></select>
+            </div>
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-setting-n-min">Cỡ mẫu tối thiểu cá nhân (n tối thiểu)</label>
+              <input id="el-setting-n-min" type="number" min="1" max="500" step="1" value="20" class="el-form-input">
+            </div>
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-setting-cusum-preset">Mục tiêu luồn manh tràng QC-CUSUM</label>
+              <select id="el-setting-cusum-preset" class="el-form-input"></select>
+            </div>
+            <div class="el-form-field el-settings-btn-wrap">
+              <button type="button" id="el-btn-save-settings" class="el-btn">
+                <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>Lưu cấu hình</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -284,6 +349,715 @@
     </nav>
   </div>
 
-  <script src="/js/app.js?v=0.1.0-alpha.3"></script>
+  <!-- NGĂN KÉO NHẬP LIỆU & CẬP NHẬT CA SOI 4 PHA KHÔNG KHÓA TUẦN TỰ (PHASE 4B) -->
+  <div id="el-case-drawer-backdrop" class="el-drawer-backdrop" hidden>
+    <div id="el-case-drawer" class="el-drawer" role="dialog" aria-modal="true" aria-labelledby="el-drawer-title">
+      <div class="el-drawer-head">
+        <div class="el-drawer-head-main">
+          <div class="el-drawer-title-row">
+            <h2 id="el-drawer-title" class="el-drawer-title">Thêm ca nội soi mới</h2>
+            <span id="el-drawer-sync-badge" class="el-sync-pill">Bản ghi mới</span>
+          </div>
+          <p id="el-drawer-subtitle" class="el-drawer-subtitle">Lưu cuốn chiếu bất kỳ pha nào — không ép hoàn tất tuần tự</p>
+        </div>
+        <button type="button" id="el-drawer-close" class="el-btn el-btn--icon" aria-label="Đóng biểu mẫu ca nội soi">
+          <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="el-phase-tabs" role="tablist" aria-label="Các pha ghi nhận hồ sơ nội soi">
+        <button type="button" role="tab" class="el-phase-tab" data-phase-tab="p1" aria-selected="true">Pha 1 · Hành chính</button>
+        <button type="button" role="tab" class="el-phase-tab" data-phase-tab="p2" aria-selected="false">Pha 2 · Thủ thuật</button>
+        <button type="button" role="tab" class="el-phase-tab" data-phase-tab="p3" aria-selected="false">Pha 3 · Biến cố 30 ngày</button>
+        <button type="button" role="tab" class="el-phase-tab" data-phase-tab="p4" aria-selected="false">Pha 4 · Giải phẫu bệnh</button>
+      </div>
+
+      <div id="el-drawer-alert" class="el-drawer-alert" role="alert" hidden></div>
+
+      <form id="el-case-form" class="el-drawer-body" novalidate>
+        <!-- PHA 1: HÀNH CHÍNH, ĐỢT ĐIỀU TRỊ & CHỈ ĐỊNH -->
+        <section id="el-phase-panel-p1" class="el-phase-panel" aria-label="Pha 1 Hành chính và chỉ định">
+          <div id="el-linked-surv-banner" class="el-linked-banner" hidden>
+            <span id="el-linked-surv-text"></span>
+            <button type="button" id="el-btn-clear-surv-link" class="el-btn el-btn--compact">Gỡ liên kết</button>
+          </div>
+
+          <div class="el-form-block">
+            <div class="el-block-label">Phân nhóm thủ thuật</div>
+            <div class="el-segmented-row" role="group" aria-label="Chọn phân nhóm thủ thuật">
+              <button type="button" class="el-seg-btn" data-form-track="COL" aria-pressed="true">COL · Đại trực tràng</button>
+              <button type="button" class="el-seg-btn" data-form-track="EGD" aria-pressed="false">EGD · Dạ dày</button>
+              <button type="button" class="el-seg-btn" data-form-track="ERCP" aria-pressed="false">ERCP · Mật tụy</button>
+            </div>
+          </div>
+
+          <div id="el-col-quick-preset-box" class="el-preset-banner">
+            <div class="el-preset-text">
+              <strong>Nhập nhanh ca tầm soát âm tính:</strong> Điền tự động BBPS 3+3+3, đã tới manh tràng, rút ống sạch 8 phút, 0 polyp.
+            </div>
+            <button type="button" id="el-btn-preset-normal-col" class="el-btn">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Đại tràng bình thường (0 polyp)</span>
+            </button>
+          </div>
+
+          <div id="el-patient-readonly-box" class="el-readonly-patient" hidden></div>
+
+          <div id="el-patient-edit-fields" class="el-form-block">
+            <div class="el-block-label">Định danh người bệnh &amp; loại hình tiếp nhận</div>
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-full-name">Họ và tên người bệnh <span id="el-preview-initials" class="el-label-hint"></span></label>
+                <input id="el-f-full-name" type="text" class="el-form-input" placeholder="Ví dụ: Nguyễn Văn Minh" autocomplete="off">
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-birth-year">Năm sinh <span id="el-preview-age" class="el-label-hint"></span></label>
+                <input id="el-f-birth-year" type="number" min="1900" max="2026" step="1" class="el-form-input" placeholder="1972">
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <span class="el-form-label">Giới tính</span>
+                <div class="el-segmented-row" role="group" aria-label="Giới tính người bệnh">
+                  <button type="button" class="el-seg-btn" data-form-sex="M" aria-pressed="true">Nam</button>
+                  <button type="button" class="el-seg-btn" data-form-sex="F" aria-pressed="false">Nữ</button>
+                  <button type="button" class="el-seg-btn" data-form-sex="O" aria-pressed="false">Khác</button>
+                </div>
+              </div>
+              <div class="el-form-field">
+                <span class="el-form-label">Loại hình điều trị</span>
+                <div class="el-segmented-row" role="group" aria-label="Loại hình điều trị">
+                  <button type="button" class="el-seg-btn" data-form-care="outpatient" aria-pressed="true">Ngoại trú</button>
+                  <button type="button" class="el-seg-btn" data-form-care="inpatient" aria-pressed="false">Nội trú</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-hospital-mrn">Mã hồ sơ bệnh viện <span id="el-mrn-req-hint" class="el-label-hint">(tùy chọn cho ngoại trú)</span></label>
+                <input id="el-f-hospital-mrn" type="text" class="el-form-input" placeholder="Ví dụ: HS26-88412" autocomplete="off">
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-referring-dept">Khoa lâm sàng gửi soi</label>
+                <input id="el-f-referring-dept" type="text" class="el-form-input" value="Khoa Nội soi Tiêu hóa">
+              </div>
+            </div>
+
+            <div id="el-inpatient-fields" class="el-field-grid el-field-grid--2" hidden>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-admission-date">Ngày nhập viện</label>
+                <input id="el-f-admission-date" type="date" class="el-form-input">
+              </div>
+              <div id="el-ercp-offset-wrap" class="el-form-field" hidden>
+                <label class="el-form-label" for="el-f-ercp-offset">Số lần ERCP trước đó cùng đợt chưa ghi sổ</label>
+                <input id="el-f-ercp-offset" type="number" min="0" max="20" step="1" value="0" class="el-form-input">
+              </div>
+            </div>
+          </div>
+
+          <div class="el-form-block">
+            <div class="el-block-label">Thời điểm thực hiện &amp; chỉ định lâm sàng</div>
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-proc-start">Thời điểm bắt đầu nội soi</label>
+                <input id="el-f-proc-start" type="datetime-local" class="el-form-input">
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-operator">Bác sĩ nội soi chính</label>
+                <input id="el-f-operator" type="text" class="el-form-input" value="ThS. BSCKI. Nguyễn Bình An">
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-indication">Nhóm chỉ định chuẩn hóa</label>
+                <select id="el-f-indication" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-indication-detail">Diễn giải chỉ định (không nhập SĐT / CCCD)</label>
+                <input id="el-f-indication-detail" type="text" class="el-form-input" placeholder="Ví dụ: Tầm soát polyp tuổi ≥ 45, FIT dương tính...">
+              </div>
+            </div>
+
+            <div id="el-col-p1-flags" class="el-switch-stack">
+              <button type="button" id="el-sw-ibd-polyposis" class="el-check-pill" aria-pressed="false">
+                <span class="el-check-indicator" aria-hidden="true"></span>
+                <span>Bệnh viêm ruột mạn (IBD) hoặc hội chứng đa polyp di truyền (loại khỏi mẫu số ADR / USMSTF)</span>
+              </button>
+              <button type="button" id="el-sw-exclude-cir" class="el-check-pill" aria-pressed="false">
+                <span class="el-check-indicator" aria-hidden="true"></span>
+                <span>Loại trừ hợp lệ khỏi mẫu số CIR (tắc nghẽn ác tính / đã cắt đại tràng / viêm tối cấp)</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHA 2: THÔNG SỐ THỦ THUẬT & TỔN THƯƠNG ĐẠI THỂ -->
+        <section id="el-phase-panel-p2" class="el-phase-panel" aria-label="Pha 2 Thông số thủ thuật" hidden>
+          <!-- Khối chuyên biệt COL -->
+          <div id="el-p2-col" class="el-form-block">
+            <div class="el-block-head-inline">
+              <div class="el-block-label">Độ sạch đại tràng (BBPS) &amp; luồn manh tràng</div>
+              <div class="el-inline-actions">
+                <span id="el-bbps-live-badge" class="el-sync-pill">BBPS: chưa chấm</span>
+                <button type="button" id="el-btn-bbps-9" class="el-btn el-btn--compact">Điền nhanh 3+3+3</button>
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--3">
+              <div class="el-form-field">
+                <span class="el-form-label">Đại tràng phải (0–3)</span>
+                <div class="el-segmented-row" role="group" aria-label="Điểm BBPS đại tràng phải">
+                  <button type="button" class="el-seg-btn" data-bbps-seg="right" data-bbps-val="0" aria-pressed="false">0</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="right" data-bbps-val="1" aria-pressed="false">1</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="right" data-bbps-val="2" aria-pressed="false">2</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="right" data-bbps-val="3" aria-pressed="false">3</button>
+                </div>
+              </div>
+              <div class="el-form-field">
+                <span class="el-form-label">Đại tràng ngang (0–3)</span>
+                <div class="el-segmented-row" role="group" aria-label="Điểm BBPS đại tràng ngang">
+                  <button type="button" class="el-seg-btn" data-bbps-seg="transverse" data-bbps-val="0" aria-pressed="false">0</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="transverse" data-bbps-val="1" aria-pressed="false">1</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="transverse" data-bbps-val="2" aria-pressed="false">2</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="transverse" data-bbps-val="3" aria-pressed="false">3</button>
+                </div>
+              </div>
+              <div class="el-form-field">
+                <span class="el-form-label">Đại tràng trái (0–3)</span>
+                <div class="el-segmented-row" role="group" aria-label="Điểm BBPS đại tràng trái">
+                  <button type="button" class="el-seg-btn" data-bbps-seg="left" data-bbps-val="0" aria-pressed="false">0</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="left" data-bbps-val="1" aria-pressed="false">1</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="left" data-bbps-val="2" aria-pressed="false">2</button>
+                  <button type="button" class="el-seg-btn" data-bbps-seg="left" data-bbps-val="3" aria-pressed="false">3</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-cecal">Luồn tới manh tràng (CIR)</label>
+                <select id="el-f-cecal" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-withdrawal-min">Thời gian rút ống quan sát sạch (phút)</label>
+                <div class="el-timer-row">
+                  <input id="el-f-withdrawal-min" type="number" min="0" max="180" step="0.5" class="el-form-input" placeholder="8.0">
+                  <button type="button" id="el-btn-timer-toggle" class="el-btn el-btn--compact">Bấm giờ</button>
+                  <button type="button" id="el-btn-timer-apply" class="el-btn el-btn--compact" hidden>Ghi <span id="el-timer-display">00:00</span></button>
+                </div>
+              </div>
+            </div>
+
+            <div id="el-cecal-fail-wrap" class="el-form-field" hidden>
+              <label class="el-form-label" for="el-f-cecal-reason">Lý do không luồn tới manh tràng</label>
+              <input id="el-f-cecal-reason" type="text" class="el-form-input" placeholder="Ví dụ: Gập góc đại tràng chậu hông, chuẩn bị đại tràng kém...">
+            </div>
+
+            <div class="el-field-grid el-field-grid--3">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-macro-polyp-count">Tổng số polyp đại thể toàn ca</label>
+                <input id="el-f-macro-polyp-count" type="number" min="0" max="200" step="1" value="0" class="el-form-input">
+              </div>
+              <div id="el-col-macro-complete-wrap" class="el-form-field" hidden>
+                <label class="el-form-label" for="el-f-complete-resection">Tình trạng cắt toàn bộ polyp</label>
+                <select id="el-f-complete-resection" class="el-form-input"></select>
+              </div>
+              <div id="el-col-macro-piecemeal-wrap" class="el-form-field" hidden>
+                <label class="el-form-label" for="el-f-piecemeal-20">Có cắt từng mảnh polyp ≥ 20 mm</label>
+                <select id="el-f-piecemeal-20" class="el-form-input"></select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Khối chuyên biệt EGD -->
+          <div id="el-p2-egd" class="el-form-block" hidden>
+            <div class="el-block-label">Trọng tâm ca nội soi thực quản — dạ dày — tá tràng (EGD)</div>
+            <div class="el-segmented-row" role="group" aria-label="Trọng tâm lâm sàng EGD">
+              <button type="button" class="el-seg-btn" data-egd-mode="lesion" aria-pressed="true">Tổn thương niêm mạc / Ung thư sớm</button>
+              <button type="button" class="el-seg-btn" data-egd-mode="bleeding" aria-pressed="false">Xuất huyết tiêu hóa / Cầm máu</button>
+              <button type="button" class="el-seg-btn" data-egd-mode="routine" aria-pressed="false">Chẩn đoán thường quy</button>
+            </div>
+
+            <div id="el-egd-bleeding-box" class="el-subpanel" hidden>
+              <div class="el-field-grid el-field-grid--2">
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-bleeding-source">Nguồn xuất huyết tiêu hóa trên</label>
+                  <select id="el-f-bleeding-source" class="el-form-input"></select>
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-forrest">Phân loại Forrest (loét không vỡ giãn)</label>
+                  <select id="el-f-forrest" class="el-form-input"></select>
+                </div>
+              </div>
+              <div class="el-field-grid el-field-grid--2">
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-hemostasis-mod">Kỹ thuật can thiệp cầm máu chính</label>
+                  <select id="el-f-hemostasis-mod" class="el-form-input"></select>
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-hemostasis-success">Kết quả cầm máu tức thì tại bàn</label>
+                  <select id="el-f-hemostasis-success" class="el-form-input"></select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Khối tổn thương đại diện dùng chung cho COL & EGD -->
+          <div id="el-p2-index-lesion" class="el-form-block">
+            <button type="button" id="el-sw-has-index-lesion" class="el-check-pill" aria-pressed="false">
+              <span class="el-check-indicator" aria-hidden="true"></span>
+              <span>Ghi nhận chi tiết 01 tổn thương đại diện nặng nhất / lớn nhất (Index Lesion)</span>
+            </button>
+
+            <div id="el-index-lesion-macro-body" class="el-subpanel" hidden>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-lesion-site">Vị trí giải phẫu (chọn nhanh hoặc gõ cụ thể)</label>
+                <div id="el-site-quick-chips" class="el-chip-cloud"></div>
+                <input id="el-f-lesion-site" type="text" class="el-form-input" placeholder="Ví dụ: Hang vị bờ cong nhỏ / Đại tràng chậu hông">
+              </div>
+
+              <div class="el-field-grid el-field-grid--3">
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-lesion-size">Kích thước (mm)</label>
+                  <input id="el-f-lesion-size" type="number" min="0" max="250" step="0.5" class="el-form-input" placeholder="12">
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-paris-class">Phân loại hình thái Paris</label>
+                  <select id="el-f-paris-class" class="el-form-input"></select>
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-surface-pattern">Cấu trúc bề mặt / mạch máu (NBI / JNET)</label>
+                  <input id="el-f-surface-pattern" type="text" class="el-form-input" placeholder="JNET 2A / Kudo IIIL / MESDA...">
+                </div>
+              </div>
+
+              <div class="el-field-grid el-field-grid--2">
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-resection-method">Phương pháp xử trí / sinh thiết</label>
+                  <select id="el-f-resection-method" class="el-form-input"></select>
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-biopsy-jars">Số lọ bệnh phẩm gửi giải phẫu bệnh</label>
+                  <input id="el-f-biopsy-jars" type="number" min="0" max="20" step="1" value="0" class="el-form-input">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Khối chuyên biệt ERCP -->
+          <div id="el-p2-ercp" class="el-form-block" hidden>
+            <div class="el-block-head-inline">
+              <div class="el-block-label">Tường trình nhú Vater &amp; thông nhú chọn lọc (ERCP)</div>
+              <span id="el-ercp-diff-badge" class="el-sync-pill">Nhú nguyên vẹn · Thuận lợi</span>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-papilla-status">Tình trạng nhú Vater ban đầu</label>
+                <select id="el-f-papilla-status" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <span class="el-form-label">Phân loại hình thái nhú Vater (Haraldsson)</span>
+                <div class="el-segmented-row" role="group" aria-label="Phân loại nhú Vater Haraldsson">
+                  <button type="button" class="el-seg-btn" data-vater-type="1" aria-pressed="true">1</button>
+                  <button type="button" class="el-seg-btn" data-vater-type="2" aria-pressed="false">2</button>
+                  <button type="button" class="el-seg-btn" data-vater-type="3a" aria-pressed="false">3a</button>
+                  <button type="button" class="el-seg-btn" data-vater-type="3b" aria-pressed="false">3b</button>
+                  <button type="button" class="el-seg-btn" data-vater-type="4" aria-pressed="false">4</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-target-duct">Ống đích chủ đạo cần thông</label>
+                <select id="el-f-target-duct" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-selective-cann">Kết quả thông nhú chọn lọc ống đích</label>
+                <select id="el-f-selective-cann" class="el-form-input"></select>
+              </div>
+            </div>
+
+            <div class="el-switch-stack">
+              <button type="button" id="el-sw-pad" class="el-check-pill" aria-pressed="false">
+                <span class="el-check-indicator" aria-hidden="true"></span>
+                <span>Có túi thừa cạnh nhú tá tràng (PAD)</span>
+              </button>
+              <button type="button" id="el-sw-duodenal-obs" class="el-check-pill" aria-pressed="false">
+                <span class="el-check-indicator" aria-hidden="true"></span>
+                <span>Hẹp tá tràng hoặc biến đổi giải phẫu cản trở tiếp cận nhú (loại khỏi mẫu số KPI nhú nguyên vẹn)</span>
+              </button>
+            </div>
+
+            <div class="el-field-grid el-field-grid--4">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-cann-contacts">Số lần chạm nhú</label>
+                <input id="el-f-cann-contacts" type="number" min="0" max="50" step="1" value="1" class="el-form-input">
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-cann-time">Phút thông nhú</label>
+                <input id="el-f-cann-time" type="number" min="0" max="240" step="0.5" value="2" class="el-form-input">
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-unintended-pd">Lần vào ống tụy</label>
+                <input id="el-f-unintended-pd" type="number" min="0" max="20" step="1" value="0" class="el-form-input">
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-ercp-total-time">Tổng phút ERCP</label>
+                <input id="el-f-ercp-total-time" type="number" min="0" max="480" step="1" value="25" class="el-form-input">
+              </div>
+            </div>
+
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-f-cann-tech">Kỹ thuật đạt thông nhú chọn lọc</label>
+              <select id="el-f-cann-tech" class="el-form-input"></select>
+            </div>
+
+            <div class="el-form-field">
+              <span class="el-form-label">Thủ thuật can thiệp đường mật — tụy đã thực hiện</span>
+              <div id="el-ercp-interventions-chips" class="el-chip-cloud"></div>
+            </div>
+
+            <div class="el-form-field">
+              <span class="el-form-label">Dự phòng viêm tụy cấp sau ERCP (PEP)</span>
+              <div id="el-ercp-prophylaxis-chips" class="el-chip-cloud"></div>
+            </div>
+
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-f-ercp-note">Tóm tắt tường trình ERCP (quét DLP tự động)</label>
+              <textarea id="el-f-ercp-note" rows="2" class="el-form-input el-form-textarea" placeholder="Mô tả kích thước sỏi lấy ra, cỡ stent, lưu thông cản quang..."></textarea>
+            </div>
+
+            <details id="el-ercp-prework-details" class="el-collapsible">
+              <summary class="el-collapsible-summary">Mở rộng: Tiền căn, Chẩn đoán hình ảnh &amp; 12 Xét nghiệm trước ERCP</summary>
+              <div class="el-collapsible-body">
+                <div class="el-form-field">
+                  <span class="el-form-label">Cờ tiền căn nguy cơ mật — tụy</span>
+                  <div id="el-ercp-history-chips" class="el-chip-cloud"></div>
+                </div>
+                <div class="el-field-grid el-field-grid--2">
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-f-altered-anat">Giải phẫu tiêu hóa trên thay đổi sau mổ</label>
+                    <select id="el-f-altered-anat" class="el-form-input"></select>
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-f-antithrombotic">Thuốc kháng huyết khối / chống đông</label>
+                    <input id="el-f-antithrombotic" type="text" class="el-form-input" placeholder="Không dùng / Ngưng Clopidogrel 5 ngày...">
+                  </div>
+                </div>
+
+                <div class="el-field-grid el-field-grid--4">
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-f-img-mod">Phương tiện CĐHA</label>
+                    <select id="el-f-img-mod" class="el-form-input"></select>
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-f-img-cbd">OMC (mm)</label>
+                    <input id="el-f-img-cbd" type="number" min="0" max="60" step="0.5" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-f-img-stone-cnt">Số sỏi CĐHA</label>
+                    <input id="el-f-img-stone-cnt" type="number" min="0" max="50" step="1" value="0" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-f-img-stone-max">Sỏi lớn nhất (mm)</label>
+                    <input id="el-f-img-stone-max" type="number" min="0" max="60" step="0.5" class="el-form-input">
+                  </div>
+                </div>
+
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-stricture-site">Vị trí hẹp đường mật trên CĐHA (nếu có)</label>
+                  <input id="el-f-stricture-site" type="text" class="el-form-input" placeholder="Ví dụ: Đoạn cuối OMC / Rốn gan Bismuth II...">
+                </div>
+
+                <div class="el-block-label">12 thông số xét nghiệm sinh hóa — huyết học — đông máu trước ERCP</div>
+                <div class="el-field-grid el-field-grid--4">
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-bili-t">Bilirubin TP (mg/dL)</label>
+                    <input id="el-lab-bili-t" type="number" step="0.1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-bili-d">Bilirubin TT (mg/dL)</label>
+                    <input id="el-lab-bili-d" type="number" step="0.1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-ast">AST (U/L)</label>
+                    <input id="el-lab-ast" type="number" step="1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-alt">ALT (U/L)</label>
+                    <input id="el-lab-alt" type="number" step="1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-ggt">GGT (U/L)</label>
+                    <input id="el-lab-ggt" type="number" step="1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-alp">ALP (U/L)</label>
+                    <input id="el-lab-alp" type="number" step="1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-amy">Amylase (U/L)</label>
+                    <input id="el-lab-amy" type="number" step="1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-lip">Lipase (U/L)</label>
+                    <input id="el-lab-lip" type="number" step="1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-wbc">WBC (G/L)</label>
+                    <input id="el-lab-wbc" type="number" step="0.1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-crp">CRP (mg/L)</label>
+                    <input id="el-lab-crp" type="number" step="0.1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-plt">Tiểu cầu (G/L)</label>
+                    <input id="el-lab-plt" type="number" step="1" class="el-form-input">
+                  </div>
+                  <div class="el-form-field">
+                    <label class="el-form-label" for="el-lab-inr">INR</label>
+                    <input id="el-lab-inr" type="number" step="0.01" class="el-form-input">
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="el-form-block">
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-f-clinical-note">Ghi chú lâm sàng chung (bộ lọc DLP tự động chặn SĐT / CCCD / BHYT / Email)</label>
+              <textarea id="el-f-clinical-note" rows="2" class="el-form-input el-form-textarea" placeholder="Nhận định niêm mạc, dặn dò sau soi..."></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHA 3: THEO DÕI BIẾN CỐ 14-30 NGÀY (AGREE 2022 & PEP ĐỘC LẬP) -->
+        <section id="el-phase-panel-p3" class="el-phase-panel" aria-label="Pha 3 Biến cố 30 ngày" hidden>
+          <div class="el-form-block">
+            <div class="el-block-label">Trạng thái cửa sổ theo dõi an toàn 14–30 ngày (Zero-Implicit Negative)</div>
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-f-followup-30d">Tình trạng đóng vòng theo dõi 30 ngày</label>
+              <select id="el-f-followup-30d" class="el-form-input"></select>
+            </div>
+          </div>
+
+          <div class="el-form-block">
+            <div class="el-block-head-inline">
+              <div class="el-block-label">Danh sách biến cố ghi nhận (phân độ AGREE 2022 &amp; Cotton/ESGE độc lập)</div>
+              <button type="button" id="el-btn-add-ae" class="el-btn el-btn--compact">
+                <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span>Thêm biến cố</span>
+              </button>
+            </div>
+            <div id="el-ae-list" class="el-ae-stack"></div>
+          </div>
+        </section>
+
+        <!-- PHA 4: GIẢI PHẪU BỆNH, TIÊU CHUẨN TRIỆT CĂN & HẸN SOI LẠI -->
+        <section id="el-phase-panel-p4" class="el-phase-panel" aria-label="Pha 4 Giải phẫu bệnh và hẹn soi lại" hidden>
+          <div class="el-form-block">
+            <div class="el-block-label">Tiến độ hoàn trả kết quả giải phẫu bệnh</div>
+            <div class="el-form-field">
+              <label class="el-form-label" for="el-f-path-status">Trạng thái giải phẫu bệnh của ca soi</label>
+              <select id="el-f-path-status" class="el-form-input"></select>
+            </div>
+          </div>
+
+          <div id="el-p4-lesion-path-box" class="el-form-block">
+            <div class="el-block-label">Mô bệnh học &amp; diện cắt của tổn thương đại diện (Index Lesion)</div>
+            <div class="el-field-grid el-field-grid--3">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-histology">Kết luận mô bệnh học chính</label>
+                <select id="el-f-histology" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-dysplasia">Bậc loạn sản / xâm lấn</label>
+                <select id="el-f-dysplasia" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-margins">Diện cắt bệnh phẩm (R0 / HM1 / VM1 / RX)</label>
+                <select id="el-f-margins" class="el-form-input"></select>
+              </div>
+            </div>
+
+            <div id="el-p4-pt1-box" class="el-subpanel">
+              <div class="el-block-label">Tiêu chuẩn mô học chiều sâu cho ESD / EMR ung thư sớm (ESGE ESD 2022)</div>
+              <div class="el-field-grid el-field-grid--4">
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-sm-um">Xâm lấn dưới niêm (µm)</label>
+                  <input id="el-f-sm-um" type="number" min="0" max="50000" step="50" class="el-form-input" placeholder="0 hoặc 800">
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-lvi">Xâm nhập mạch (LVI)</label>
+                  <select id="el-f-lvi" class="el-form-input"></select>
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-diff">Độ biệt hóa tế bào</label>
+                  <select id="el-f-diff" class="el-form-input"></select>
+                </div>
+                <div class="el-form-field">
+                  <label class="el-form-label" for="el-f-budding">Nảy chồi u (Budding)</label>
+                  <select id="el-f-budding" class="el-form-input"></select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="el-p4-col-rollup-box" class="el-form-block">
+            <div class="el-block-head-inline">
+              <div class="el-block-label">Tổng hợp mô bệnh học toàn ca đại trực tràng (phục vụ ADR, SSLDR &amp; USMSTF / ESGE)</div>
+              <button type="button" id="el-btn-sync-whole-case" class="el-btn el-btn--compact">Đồng bộ từ tổn thương đại diện</button>
+            </div>
+            <div class="el-field-grid el-field-grid--3">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-any-ad">Có ≥ 1 u tuyến (Adenoma)</label>
+                <select id="el-f-wc-any-ad" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-ad-bin">Nhóm số lượng u tuyến toàn ca</label>
+                <select id="el-f-wc-ad-bin" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-ad-max">U tuyến lớn nhất (mm)</label>
+                <input id="el-f-wc-ad-max" type="number" min="0" max="250" step="0.5" class="el-form-input">
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-vill-hgd">Có nhánh nhung mao hoặc HGD bất kỳ</label>
+                <select id="el-f-wc-vill-hgd" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-hgd">Có loạn sản độ cao (HGD) bất kỳ</label>
+                <select id="el-f-wc-hgd" class="el-form-input"></select>
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--3">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-any-ssl">Có ≥ 1 polyp răng cưa (SSL)</label>
+                <select id="el-f-wc-any-ssl" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-ssl-bin">Nhóm số lượng SSL toàn ca</label>
+                <select id="el-f-wc-ssl-bin" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-ssl-max">SSL lớn nhất (mm)</label>
+                <input id="el-f-wc-ssl-max" type="number" min="0" max="250" step="0.5" class="el-form-input">
+              </div>
+            </div>
+
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-ssl-dys">Có SSL kèm loạn sản hoặc TSA</label>
+                <select id="el-f-wc-ssl-dys" class="el-form-input"></select>
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-wc-inv-noncur">Có ung thư xâm lấn / cắt không triệt căn</label>
+                <select id="el-f-wc-inv-noncur" class="el-form-input"></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="el-form-block">
+            <div class="el-block-label">Hẹn soi lại / tái khám theo chỉ định bác sĩ (EGD, ERCP hoặc ghi đè lâm sàng)</div>
+            <div class="el-field-grid el-field-grid--2">
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-clin-due-date">Ngày hẹn soi lại / tái khám cụ thể</label>
+                <input id="el-f-clin-due-date" type="date" class="el-form-input">
+              </div>
+              <div class="el-form-field">
+                <label class="el-form-label" for="el-f-clin-fu-note">Ghi chú kế hoạch theo dõi tiếp theo</label>
+                <input id="el-f-clin-fu-note" type="text" class="el-form-input" placeholder="Ví dụ: Soi kiểm tra ổ loét sau 8 tuần PPI / Rút stent mật sau 3 tháng...">
+              </div>
+            </div>
+          </div>
+
+          <details id="el-danger-zone" class="el-collapsible el-danger-zone" hidden>
+            <summary class="el-collapsible-summary">Vùng quản trị Superadmin: Hủy hiệu lực hồ sơ ca soi này</summary>
+            <div class="el-collapsible-body">
+              <p class="el-danger-desc">Hồ sơ bị hủy hiệu lực sẽ loại khỏi danh sách hoạt động nhưng vẫn lưu vết bất biến trong chuỗi kiểm toán SHA-256. Nhập chính xác mã ca để xác nhận:</p>
+              <div class="el-field-grid el-field-grid--2">
+                <input id="el-f-confirm-delete-code" type="text" class="el-form-input" placeholder="Nhập đúng mã ca để mở khóa nút hủy" autocomplete="off">
+                <button type="button" id="el-btn-supersede-case" class="el-btn el-btn--danger">Xác nhận hủy hiệu lực ca soi</button>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <div class="el-drawer-foot">
+          <button type="button" id="el-btn-cancel-drawer" class="el-btn">Đóng</button>
+          <button type="submit" id="el-btn-save-case" class="el-btn el-btn--primary">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span id="el-btn-save-label">Lưu hồ sơ ca soi</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- HỘP THOẠI BẢO VỆ THAY ĐỔI CHƯA LƯU (DIRTY GUARD — MED-WEB #18) -->
+  <div id="el-dirty-modal-backdrop" class="el-submodal-backdrop" hidden>
+    <div class="el-submodal" role="alertdialog" aria-modal="true" aria-labelledby="el-dirty-title">
+      <h3 id="el-dirty-title" class="el-submodal-title">Có thông tin ca soi chưa lưu</h3>
+      <p class="el-submodal-desc">Nếu đóng ngay bây giờ, các trường vừa thay đổi trên biểu mẫu sẽ bị hủy (EndoLog không lưu nháp định danh vào bộ nhớ trình duyệt).</p>
+      <div class="el-submodal-actions">
+        <button type="button" id="el-btn-dirty-keep" class="el-btn el-btn--primary">Tiếp tục nhập liệu</button>
+        <button type="button" id="el-btn-dirty-discard" class="el-btn el-btn--danger">Bỏ thay đổi chưa lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HỘP THOẠI XÁC NHẬN TRÙNG HỌ TÊN + NĂM SINH NGOẠI TRÚ (OD-04 — HTTP 409) -->
+  <div id="el-dup-modal-backdrop" class="el-submodal-backdrop" hidden>
+    <div class="el-submodal" role="dialog" aria-modal="true" aria-labelledby="el-dup-title">
+      <h3 id="el-dup-title" class="el-submodal-title">Phát hiện hồ sơ ngoại trú trùng họ tên &amp; năm sinh</h3>
+      <p class="el-submodal-desc">Hệ thống không tự động gộp ngầm khi ca ngoại trú chưa có mã hồ sơ bệnh viện. Vui lòng chọn cách xử lý:</p>
+      <div id="el-dup-candidates" class="el-dup-list"></div>
+      <div class="el-submodal-actions">
+        <button type="button" id="el-btn-dup-new-patient" class="el-btn">Xác nhận là người bệnh mới khác người</button>
+        <button type="button" id="el-btn-dup-cancel" class="el-btn">Quay lại kiểm tra</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HỘP THOẠI SAO LƯU MÃ HÓA HỒ SƠ A (.ENDOLOG.ENC — CHỈ SUPERADMIN) -->
+  <div id="el-vault-modal-backdrop" class="el-submodal-backdrop" hidden>
+    <div class="el-submodal" role="dialog" aria-modal="true" aria-labelledby="el-vault-title">
+      <h3 id="el-vault-title" class="el-submodal-title">Sao lưu kho mã hóa đầy đủ (Hồ sơ A · .endolog.enc)</h3>
+      <p id="el-vault-role-notice" class="el-submodal-desc"></p>
+      <div id="el-vault-passphrase-box" class="el-form-field">
+        <label class="el-form-label" for="el-vault-passphrase">Khóa mật khẩu mã hóa tập tin sao lưu (tối thiểu 12 ký tự)</label>
+        <input id="el-vault-passphrase" type="password" minlength="12" maxlength="128" class="el-form-input" autocomplete="new-password" placeholder="Nhập cụm mật khẩu bảo vệ tệp .endolog.enc">
+      </div>
+      <div id="el-vault-error" class="el-error-banner" role="alert" hidden></div>
+      <div class="el-submodal-actions">
+        <button type="button" id="el-btn-vault-close" class="el-btn">Đóng</button>
+        <button type="button" id="el-btn-vault-download" class="el-btn el-btn--primary">Tải tệp sao lưu mã hóa</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js?v=0.2.0"></script>
 </body>
 </html>

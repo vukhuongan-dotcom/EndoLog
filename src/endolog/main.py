@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from pathlib import Path
 from typing import Any
 
@@ -310,9 +311,21 @@ def create_app(
     def patch_case_endpoint(
         case_id: str,
         patch: CasePhasePatchRequest,
+        request: Request,
         response: Response,
         claims: dict[str, Any] = Depends(get_current_user),
     ) -> dict[str, Any]:
+        if_match = (request.headers.get("if-match") or "").strip()
+        if if_match and if_match != "*":
+            m = re.search(r"v?(\d+)", if_match)
+            if not m or int(m.group(1)) != int(patch.expected_version):
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "OCC_VERSION_CONFLICT",
+                        "message": f"Header If-Match ({if_match}) không khớp với expected_version (v{patch.expected_version}).",
+                    },
+                )
         try:
             updated = svc.patch_case(
                 case_id,
@@ -387,6 +400,7 @@ def create_app(
                     "procedure_date": c["procedure_start_at"][:10],
                     "patient": c["patient"],
                     "indication_detail": c.get("indication_detail") or c.get("indication"),
+                    "pathology_completion_status": c.get("pathology_completion_status"),
                     "surveillance": surv,
                     "urgency": {"tone": urgency_tone, "label": urgency_label},
                 }

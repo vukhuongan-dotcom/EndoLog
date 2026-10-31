@@ -1,0 +1,47 @@
+/* EndoLog Service Worker v0.1.0 — Zero-PHI Cache Allowlist (NetworkOnly for all /api/*) */
+const CACHE_NAME = 'endolog-static-v0.1.0';
+const STATIC_ALLOWLIST = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/css/fonts.css?v=0.1.0',
+  '/css/tokens.css?v=0.1.0',
+  '/css/app.css?v=0.1.0',
+  '/js/app.js?v=0.1.0',
+  '/icons/favicon.svg',
+  '/fonts/noto-sans-latin-var.woff2',
+  '/fonts/noto-sans-vietnamese-var.woff2',
+  '/fonts/plus-jakarta-sans-latin-var.woff2',
+  '/fonts/plus-jakarta-sans-vietnamese-var.woff2',
+  '/fonts/jetbrains-mono-latin-var.woff2',
+  '/fonts/jetbrains-mono-vietnamese-var.woff2'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ALLOWLIST)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/')) {
+    /* Strict Zero-PHI: never read or write /api/* in Cache Storage */
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(event.request))
+  );
+});

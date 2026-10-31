@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" id="el-meta-theme" content="">
+  <title>EndoLog — Hệ thống sổ bộ lâm sàng &amp; đánh giá chất lượng nội soi tiêu hoá</title>
+  <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/fonts.css?v=0.1.0">
+  <link rel="stylesheet" href="/css/tokens.css?v=0.1.0">
+  <link rel="stylesheet" href="/css/app.css?v=0.1.0">
+</head>
+<body>
+  <!-- Màn hình đăng nhập (Zero-Image, tên đầy đủ tiếng Việt) -->
+  <section id="el-login-screen" class="el-login-wrap" hidden>
+    <div class="el-login-card" role="region" aria-labelledby="el-login-heading">
+      <div class="el-login-brand">
+        <svg class="el-brand-mark el-brand-mark--login" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <path d="M48.09 18.5A21 21 0 1 0 48.09 45.5" fill="none" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
+          <path d="M20 32H38" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
+          <circle class="el-brand-halo" cx="50" cy="32" r="8.5" fill="var(--accent-light)" opacity=".28"/>
+          <circle cx="50" cy="32" r="4.5" fill="var(--accent-light)"/>
+        </svg>
+        <div>
+          <h1 id="el-login-heading" class="el-wordmark el-wordmark--login">
+            <span class="el-wordmark-endo">Endo</span><span class="el-wordmark-log">Log</span>
+          </h1>
+          <p class="el-brand-subtitle">Hệ thống sổ bộ lâm sàng &amp; đánh giá chất lượng nội soi tiêu hoá</p>
+        </div>
+      </div>
+
+      <form id="el-login-form" novalidate>
+        <div class="el-form-field">
+          <label class="el-form-label" for="el-login-username">Tài khoản bác sĩ</label>
+          <input id="el-login-username" name="username" type="text" autocomplete="username" class="el-form-input" value="nguyenbinhan" required>
+        </div>
+        <div class="el-form-field">
+          <label class="el-form-label" for="el-login-password">Mật khẩu xác thực</label>
+          <input id="el-login-password" name="password" type="password" autocomplete="current-password" class="el-form-input" required>
+        </div>
+        <div class="el-login-actions">
+          <button type="submit" class="el-btn el-btn--primary">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Đăng nhập sổ bộ</span>
+          </button>
+          <button type="button" id="el-btn-dev-bypass" class="el-btn" hidden>
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            <span>Mở phiên giả lập cục bộ (5 ca chuẩn OD-05)</span>
+          </button>
+        </div>
+        <div id="el-login-error" class="el-error-banner" role="alert" hidden></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Khung ứng dụng chính -->
+  <div id="el-app-shell" hidden>
+    <header class="el-topbar">
+      <div class="el-topbar-inner">
+        <div class="el-topbar-row">
+          <div class="el-brand-cluster">
+            <svg class="el-brand-mark el-brand-mark--header" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path d="M48.09 18.5A21 21 0 1 0 48.09 45.5" fill="none" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
+              <path d="M20 32H38" stroke="var(--primary)" stroke-width="7" stroke-linecap="round"/>
+              <circle class="el-brand-halo" cx="50" cy="32" r="8.5" fill="var(--accent-light)" opacity=".28"/>
+              <circle cx="50" cy="32" r="4.5" fill="var(--accent-light)"/>
+            </svg>
+            <div class="el-brand-text">
+              <div class="el-wordmark el-wordmark--header">
+                <span class="el-wordmark-endo">Endo</span><span class="el-wordmark-log">Log</span>
+              </div>
+              <p class="el-brand-subtitle el-brand-subtitle--header">Hệ thống sổ bộ lâm sàng &amp; đánh giá chất lượng nội soi tiêu hoá</p>
+            </div>
+          </div>
+
+          <div class="el-topbar-actions">
+            <div class="el-operator-pill" aria-label="Bác sĩ đang làm việc">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <div>
+                <div id="el-user-name" class="el-operator-name">ThS. BSCKI. Nguyễn Bình An</div>
+                <div id="el-user-dept" class="el-operator-dept">Khoa Nội soi Tiêu hóa — Bệnh viện Bình Dân</div>
+              </div>
+            </div>
+
+            <button type="button" id="el-theme-toggle" class="el-btn el-btn--icon" aria-label="Chuyển chế độ giao diện sáng hoặc tối">
+              <svg id="el-icon-moon" class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+              <svg id="el-icon-sun" class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+              <span id="el-theme-label" class="el-btn-label-desktop">Nền tối</span>
+            </button>
+
+            <button type="button" id="el-btn-logout" class="el-btn el-btn--icon" aria-label="Đăng xuất phiên làm việc">
+              <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span class="el-btn-label-desktop">Đăng xuất</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Thanh tab máy tính (ĐỦ 3 dấu khi chọn: chữ --primary 600 + gạch 2 px --primary + chấm --accent-light) -->
+        <nav class="el-desktop-tabs" role="tablist" aria-label="Điều hướng phân hệ sổ bộ">
+          <button type="button" role="tab" class="el-tab-btn" data-nav-target="cases" aria-selected="true">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <span>Nhật ký ca soi</span>
+            <span class="el-tab-dot" aria-hidden="true"></span>
+          </button>
+
+          <button type="button" role="tab" class="el-tab-btn" data-nav-target="surveillance" aria-selected="false">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span>Hẹn soi lại</span>
+            <span class="el-tab-dot" aria-hidden="true"></span>
+          </button>
+
+          <button type="button" role="tab" class="el-tab-btn" data-nav-target="quality" aria-selected="false">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span>Chỉ số chất lượng</span>
+            <span class="el-tab-dot" aria-hidden="true"></span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="el-main">
+      <!-- MÀN HÌNH 1: NHẬT KÝ CA SOI -->
+      <section id="el-view-cases" aria-labelledby="el-title-cases">
+        <div class="el-section-head">
+          <div>
+            <h1 id="el-title-cases" class="el-section-title">Nhật ký ca soi</h1>
+            <p class="el-section-desc">Ghi nhận cuốn chiếu 4 pha không khóa tuần tự — Khoa Nội soi Tiêu hóa, Bệnh viện Bình Dân</p>
+          </div>
+          <button type="button" id="el-btn-export-csv" class="el-btn el-btn--primary">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Xuất bảng nghiên cứu Profile B</span>
+          </button>
+        </div>
+
+        <div id="el-cases-summary" class="el-summary-grid"></div>
+
+        <div class="el-toolbar">
+          <div class="el-filter-group" role="group" aria-label="Lọc theo phân hệ thủ thuật">
+            <button type="button" class="el-filter-pill" data-track-filter="ALL" aria-pressed="true">Tất cả</button>
+            <button type="button" class="el-filter-pill" data-track-filter="EGD" aria-pressed="false">EGD · Dạ dày</button>
+            <button type="button" class="el-filter-pill" data-track-filter="COL" aria-pressed="false">COL · Đại tràng</button>
+            <button type="button" class="el-filter-pill" data-track-filter="ERCP" aria-pressed="false">ERCP · Mật tụy</button>
+          </div>
+          <input id="el-case-search" type="search" class="el-search-input" placeholder="Tìm mã ca, viết tắt tên hoặc vị trí..." aria-label="Tìm kiếm trong nhật ký ca soi">
+        </div>
+
+        <div id="el-case-list" class="el-case-list"></div>
+      </section>
+
+      <!-- MÀN HÌNH 2: HẸN SOI LẠI -->
+      <section id="el-view-surveillance" aria-labelledby="el-title-surveillance" hidden>
+        <div class="el-section-head">
+          <div>
+            <h1 id="el-title-surveillance" class="el-section-title">Hẹn soi lại</h1>
+            <p class="el-section-desc">Khuyến cáo mặc định chính theo USMSTF 2020 (đối chiếu song song ESGE 2020 &amp; ESGE ESD 2022) và cảnh báo hội chẩn Ngoại khoa</p>
+          </div>
+          <div class="el-filter-group" role="group" aria-label="Lọc danh sách hẹn soi lại">
+            <button type="button" class="el-filter-pill" data-surv-filter="ALL" aria-pressed="true">Tất cả</button>
+            <button type="button" class="el-filter-pill" data-surv-filter="urgent" aria-pressed="false">Cảnh báo Ngoại</button>
+            <button type="button" class="el-filter-pill" data-surv-filter="due" aria-pressed="false">Đến hạn</button>
+            <button type="button" class="el-filter-pill" data-surv-filter="pending" aria-pressed="false">Chờ GPB</button>
+          </div>
+        </div>
+
+        <div id="el-surveillance-list" class="el-case-list"></div>
+      </section>
+
+      <!-- MÀN HÌNH 3: CHỈ SỐ CHẤT LƯỢNG -->
+      <section id="el-view-quality" aria-labelledby="el-title-quality" hidden>
+        <div class="el-section-head">
+          <div>
+            <h1 id="el-title-quality" class="el-section-title">Chỉ số chất lượng</h1>
+            <p class="el-section-desc">Tử số và mẫu số tường minh theo chuẩn ASGE/ACG 2024 &amp; ESGE — tự động tách riêng ca chờ GPB và ca chưa hết cửa sổ 30 ngày</p>
+          </div>
+          <div class="el-filter-group" role="group" aria-label="Ngưỡng tuổi đoàn hệ ADR và SSLDR">
+            <button type="button" class="el-filter-pill" data-age-toggle="45" aria-pressed="true">Đoàn hệ ≥ 45 tuổi (ASGE/ACG)</button>
+            <button type="button" class="el-filter-pill" data-age-toggle="50" aria-pressed="false">Đoàn hệ ≥ 50 tuổi</button>
+          </div>
+        </div>
+
+        <div id="el-kpi-grid" class="el-kpi-grid"></div>
+
+        <div class="el-chart-panel">
+          <div class="el-chart-head">
+            <div>
+              <h2 class="el-chart-title">Giám sát Tabular Bernoulli QC-CUSUM cá nhân</h2>
+              <p id="el-cusum-disclaimer" class="el-chart-disclaimer"></p>
+            </div>
+            <div class="el-filter-group" role="group" aria-label="Chọn chỉ số giám sát CUSUM">
+              <button type="button" class="el-filter-pill" data-cusum-metric="CIR" aria-pressed="true">Luồn manh tràng (CIR · p0=0,10)</button>
+              <button type="button" class="el-filter-pill" data-cusum-metric="ERCP_NATIVE" aria-pressed="false">Thông nhú nguyên vẹn (ERCP · p0=0,10)</button>
+            </div>
+          </div>
+          <div id="el-cusum-container"></div>
+        </div>
+
+        <div id="el-audit-strip" class="el-audit-strip"></div>
+      </section>
+    </main>
+
+    <!-- Thanh điều hướng dưới cùng trên điện thoại -->
+    <nav class="el-bottom-nav" role="tablist" aria-label="Điều hướng di động">
+      <div class="el-bottom-nav-grid">
+        <button type="button" role="tab" class="el-bottom-btn" data-nav-target="cases" aria-selected="true">
+          <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <span>Nhật ký ca soi</span>
+          <span class="el-tab-dot" aria-hidden="true"></span>
+        </button>
+
+        <button type="button" role="tab" class="el-bottom-btn" data-nav-target="surveillance" aria-selected="false">
+          <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span>Hẹn soi lại</span>
+          <span class="el-tab-dot" aria-hidden="true"></span>
+        </button>
+
+        <button type="button" role="tab" class="el-bottom-btn" data-nav-target="quality" aria-selected="false">
+          <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          <span>Chỉ số chất lượng</span>
+          <span class="el-tab-dot" aria-hidden="true"></span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <script src="/js/app.js?v=0.1.0"></script>
+</body>
+</html>

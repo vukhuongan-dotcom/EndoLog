@@ -1,13 +1,13 @@
-/* EndoLog Service Worker v0.1.0 — Zero-PHI Cache Allowlist (NetworkOnly for all /api/*) */
-const CACHE_NAME = 'endolog-static-v0.1.0';
+/* EndoLog Service Worker v0.1.0-alpha.2 — Zero-PHI Cache Allowlist (NetworkOnly for all /api/*) */
+const CACHE_NAME = 'endolog-static-v0.1.0-alpha.2';
 const STATIC_ALLOWLIST = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/css/fonts.css?v=0.1.0',
-  '/css/tokens.css?v=0.1.0',
-  '/css/app.css?v=0.1.0',
-  '/js/app.js?v=0.1.0',
+  '/css/fonts.css?v=0.1.0-alpha.2',
+  '/css/tokens.css?v=0.1.0-alpha.2',
+  '/css/app.css?v=0.1.0-alpha.2',
+  '/js/app.js?v=0.1.0-alpha.2',
   '/icons/favicon.svg',
   '/fonts/noto-sans-latin-var.woff2',
   '/fonts/noto-sans-vietnamese-var.woff2',
@@ -34,8 +34,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/')) {
-    /* Strict Zero-PHI: never read or write /api/* in Cache Storage */
-    event.respondWith(fetch(event.request));
+    /* Strict Zero-PHI NetworkOnly: do not intercept or proxy /api/* through Service Worker or Cache Storage */
     return;
   }
   if (event.request.method !== 'GET') {

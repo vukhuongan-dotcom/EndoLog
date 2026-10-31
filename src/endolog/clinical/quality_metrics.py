@@ -149,22 +149,29 @@ def compute_kpi_snapshot(
     # Adverse event rates on completed 30-day follow-up
     all_fu_eval = []
     all_fu_missing = []
+    all_fu_pending_window = 0
+    all_fu_lost = 0
     agree_any_num = 0
     agree_severe_num = 0
     for c in active_cases:
         ae_sum = summarize_case_adverse_events(c)
         if ae_sum["completed_followup"]:
             all_fu_eval.append(c)
-            if ae_sum["is_agree_any"]:
+            if ae_sum["is_agree_any"] or ae_sum["has_pep"] or ae_sum["followup_30d_status"] == "COMPLETED_WITH_AE":
                 agree_any_num += 1
             if ae_sum["is_agree_severe_ge_iii"]:
                 agree_severe_num += 1
         else:
             all_fu_missing.append(c)
+            if ae_sum["followup_30d_status"] == "PENDING_WINDOW":
+                all_fu_pending_window += 1
+            elif ae_sum["followup_30d_status"] == "LOST_TO_FOLLOWUP":
+                all_fu_lost += 1
 
     ercp_fu_eval = []
     ercp_fu_missing = []
     pep_num = 0
+    pep_severe_num = 0
     ercp_agree_severe_num = 0
     for c in ercp_cases:
         ae_sum = summarize_case_adverse_events(c)
@@ -172,6 +179,8 @@ def compute_kpi_snapshot(
             ercp_fu_eval.append(c)
             if ae_sum["has_pep"]:
                 pep_num += 1
+                if ae_sum["highest_pep_severity"] == "SEVERE":
+                    pep_severe_num += 1
             if ae_sum["is_agree_severe_ge_iii"]:
                 ercp_agree_severe_num += 1
         else:
@@ -235,9 +244,12 @@ def compute_kpi_snapshot(
             "completed_fu_denominator": len(all_fu_eval),
             "agree_severe_rate_pct": _pct(agree_severe_num, len(all_fu_eval)),
             "missing_or_pending_fu_count": len(all_fu_missing),
+            "pending_window_count": all_fu_pending_window,
+            "lost_to_followup_count": all_fu_lost,
         },
         "ercp_pep": {
             "numerator": pep_num,
+            "pep_severe_numerator": pep_severe_num,
             "ercp_agree_severe_numerator": ercp_agree_severe_num,
             "completed_fu_denominator": len(ercp_fu_eval),
             "rate_pct": _pct(pep_num, len(ercp_fu_eval)),

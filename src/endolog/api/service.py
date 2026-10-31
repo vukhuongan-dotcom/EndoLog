@@ -429,14 +429,33 @@ class EndoLogService:
         birth_year = int(pat.get("birth_year") or proc_year)
         age = max(0, proc_year - birth_year)
 
-        # Compute primary clinical status badge semantic key (--clinical-*)
-        if surv["category"] == "SURGICAL_MDT_CONSULT_ALERT" or ae_info["is_agree_any"]:
+        # Compute primary clinical status badge semantic key (--clinical-*) with Vietnamese label
+        pep_severity_vi = {
+            "MILD": "mức độ nhẹ",
+            "MODERATE": "mức độ trung bình",
+            "SEVERE": "mức độ nặng",
+        }
+        has_recorded_ae = bool(
+            ae_info["is_agree_any"]
+            or ae_info["has_pep"]
+            or ae_info["followup_30d_status"] == "COMPLETED_WITH_AE"
+        )
+        if surv["category"] == "SURGICAL_MDT_CONSULT_ALERT" or has_recorded_ae:
             clinical_badge_key = "urgent"
             if surv["category"] == "SURGICAL_MDT_CONSULT_ALERT":
                 clinical_badge_label = f"Cảnh báo hội chẩn {surv['surgical_consult_target_dept']}"
+            elif ae_info["highest_agree_grade"] != "NONE":
+                if ae_info["has_pep"]:
+                    pep_sev_txt = pep_severity_vi.get(str(ae_info["highest_pep_severity"]), "ghi nhận")
+                    pep_part = f"PEP {pep_sev_txt} · "
+                else:
+                    pep_part = ""
+                clinical_badge_label = f"Biến cố {pep_part}AGREE độ {ae_info['highest_agree_grade']}"
+            elif ae_info["has_pep"]:
+                pep_sev_txt = pep_severity_vi.get(str(ae_info["highest_pep_severity"]), "ghi nhận")
+                clinical_badge_label = f"Biến cố PEP {pep_sev_txt} (chưa phân độ AGREE)"
             else:
-                pep_part = f"PEP {ae_info['highest_pep_severity']} · " if ae_info["has_pep"] else ""
-                clinical_badge_label = f"Biến cố {pep_part}AGREE {ae_info['highest_agree_grade']}"
+                clinical_badge_label = "Có biến cố sau thủ thuật (chưa phân độ AGREE)"
         elif case.get("pathology_completion_status") in ("PENDING", "PARTIAL"):
             clinical_badge_key = "pending"
             clinical_badge_label = "Chờ GPB"

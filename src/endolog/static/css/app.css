@@ -300,6 +300,10 @@ body {
   margin: 0 0 6px;
 }
 
+.el-stat-label-short {
+  display: none;
+}
+
 .el-stat-value {
   font-family: var(--font-display);
   font-size: var(--text-2xl);
@@ -472,6 +476,39 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Khu vực phụ Xuất dữ liệu nghiên cứu (nút phụ có viền, tách khỏi vị trí hành động chính đầu trang) */
+.el-export-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.el-export-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.el-export-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.el-export-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 .el-case-card {
@@ -849,7 +886,56 @@ body {
     display: block;
   }
   .el-main {
-    padding: 14px 14px 86px;
+    padding: 12px 14px 86px;
+  }
+  .el-section-head {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .el-section-desc {
+    font-size: var(--text-xs);
+    line-height: 1.35;
+  }
+  /* Điện thoại: gộp 4 KPI tóm tắt thành 1 hàng 4 ô gọn (chỉ số + nhãn ngắn, ẩn dòng giải thích) như SurgiLog */
+  .el-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .el-stat-card {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: var(--radius-md);
+    gap: 2px;
+  }
+  .el-stat-label {
+    margin: 0;
+    line-height: 1.2;
+  }
+  .el-stat-label-full,
+  .el-stat-sub {
+    display: none;
+  }
+  .el-stat-label-short {
+    display: inline;
+  }
+  .el-stat-value {
+    font-size: var(--text-xl);
+    line-height: 1.1;
+  }
+  .el-toolbar {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .el-filter-group {
+    gap: 6px;
+  }
+  .el-filter-pill {
+    padding: 6px 10px;
   }
   .el-kpi-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -865,7 +951,7 @@ body {
 
 @media (max-width: 359px) {
   .el-summary-grid {
-    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
   .el-case-top {
     flex-direction: column;

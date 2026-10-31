@@ -8,9 +8,9 @@
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/css/fonts.css?v=0.1.0-alpha.2">
-  <link rel="stylesheet" href="/css/tokens.css?v=0.1.0-alpha.2">
-  <link rel="stylesheet" href="/css/app.css?v=0.1.0-alpha.2">
+  <link rel="stylesheet" href="/css/fonts.css?v=0.1.0-alpha.3">
+  <link rel="stylesheet" href="/css/tokens.css?v=0.1.0-alpha.3">
+  <link rel="stylesheet" href="/css/app.css?v=0.1.0-alpha.3">
 </head>
 <body>
   <!-- Màn hình đăng nhập (Zero-Image, tên đầy đủ tiếng Việt) -->
@@ -166,14 +166,7 @@
             <h1 id="el-title-cases" class="el-section-title">Nhật ký ca soi</h1>
             <p class="el-section-desc">Ghi nhận cuốn chiếu 4 pha không khóa tuần tự — Khoa Nội soi Tiêu hóa, Bệnh viện Bình Dân</p>
           </div>
-          <button type="button" id="el-btn-export-csv" class="el-btn el-btn--primary">
-            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            <span>Xuất bảng nghiên cứu (hồ sơ B)</span>
-          </button>
+          <!-- Vị trí nút hành động chính để trống dành cho "Thêm ca soi" tại Phase 4B -->
         </div>
 
         <div id="el-cases-summary" class="el-summary-grid"></div>
@@ -182,13 +175,28 @@
           <div class="el-filter-group" role="group" aria-label="Lọc theo phân hệ thủ thuật">
             <button type="button" class="el-filter-pill" data-track-filter="ALL" aria-pressed="true">Tất cả</button>
             <button type="button" class="el-filter-pill" data-track-filter="EGD" aria-pressed="false">EGD · Dạ dày</button>
-            <button type="button" class="el-filter-pill" data-track-filter="COL" aria-pressed="false">COL · Đại tràng</button>
+            <button type="button" class="el-filter-pill" data-track-filter="COL" aria-pressed="false">COL · Đại trực tràng</button>
             <button type="button" class="el-filter-pill" data-track-filter="ERCP" aria-pressed="false">ERCP · Mật tụy</button>
           </div>
           <input id="el-case-search" type="search" class="el-search-input" placeholder="Tìm mã ca, viết tắt tên hoặc vị trí..." aria-label="Tìm kiếm trong nhật ký ca soi">
         </div>
 
         <div id="el-case-list" class="el-case-list"></div>
+
+        <div class="el-export-bar" role="region" aria-label="Xuất dữ liệu nghiên cứu">
+          <div class="el-export-meta">
+            <span class="el-export-title">Xuất dữ liệu</span>
+            <span class="el-export-desc">Xuất bảng nghiên cứu giả danh hóa dọc theo hợp đồng hồ sơ B (CSV)</span>
+          </div>
+          <button type="button" id="el-btn-export-csv" class="el-btn">
+            <svg class="el-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Xuất bảng nghiên cứu (hồ sơ B)</span>
+          </button>
+        </div>
       </section>
 
       <!-- MÀN HÌNH 2: HẸN SOI LẠI -->
@@ -276,6 +284,6 @@
     </nav>
   </div>
 
-  <script src="/js/app.js?v=0.1.0-alpha.2"></script>
+  <script src="/js/app.js?v=0.1.0-alpha.3"></script>
 </body>
 </html>

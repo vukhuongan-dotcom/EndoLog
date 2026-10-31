@@ -431,9 +431,9 @@ class EndoLogService:
 
         # Compute primary clinical status badge semantic key (--clinical-*) with Vietnamese label
         pep_severity_vi = {
-            "MILD": "mức độ nhẹ",
-            "MODERATE": "mức độ trung bình",
-            "SEVERE": "mức độ nặng",
+            "MILD": "mức nhẹ",
+            "MODERATE": "mức vừa",
+            "SEVERE": "mức nặng",
         }
         has_recorded_ae = bool(
             ae_info["is_agree_any"]
@@ -447,13 +447,12 @@ class EndoLogService:
             elif ae_info["highest_agree_grade"] != "NONE":
                 if ae_info["has_pep"]:
                     pep_sev_txt = pep_severity_vi.get(str(ae_info["highest_pep_severity"]), "ghi nhận")
-                    pep_part = f"PEP {pep_sev_txt} · "
+                    clinical_badge_label = f"Viêm tụy sau ERCP {pep_sev_txt} · AGREE {ae_info['highest_agree_grade']}"
                 else:
-                    pep_part = ""
-                clinical_badge_label = f"Biến cố {pep_part}AGREE độ {ae_info['highest_agree_grade']}"
+                    clinical_badge_label = f"Biến cố AGREE {ae_info['highest_agree_grade']}"
             elif ae_info["has_pep"]:
                 pep_sev_txt = pep_severity_vi.get(str(ae_info["highest_pep_severity"]), "ghi nhận")
-                clinical_badge_label = f"Biến cố PEP {pep_sev_txt} (chưa phân độ AGREE)"
+                clinical_badge_label = f"Viêm tụy sau ERCP {pep_sev_txt} (chưa phân độ AGREE)"
             else:
                 clinical_badge_label = "Có biến cố sau thủ thuật (chưa phân độ AGREE)"
         elif case.get("pathology_completion_status") in ("PENDING", "PARTIAL"):

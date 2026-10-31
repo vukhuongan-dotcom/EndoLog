@@ -66,13 +66,25 @@ def _pct(num: int, den: int) -> float | None:
     return round((num * 100.0) / den, 1)
 
 
+def _rate_status(num: int, den: int, target_pct: float | None, n_min: int) -> str:
+    if den < n_min:
+        return "insufficient_n"
+    if target_pct is None:
+        return "no_target"
+    if num * 100.0 >= target_pct * den - 1e-9:
+        return "met"
+    return "below_target"
+
+
 def compute_kpi_snapshot(
     cases: list[dict[str, Any]],
     *,
     patients_by_id: dict[str, dict[str, Any]] | None = None,
     min_adr_age: int = 45,
+    n_min: int = 20,
 ) -> dict[str, Any]:
-    """Compute personal endoscopy quality metrics with explicit numerators, denominators, and pending exclusions."""
+    """Compute personal endoscopy quality metrics with explicit numerators, denominators, n_min status, and exclusions."""
+    effective_n_min = max(1, int(n_min))
     active_cases = [c for c in cases if c.get("record_status", "ACTIVE") == "ACTIVE"]
 
     colo_cases = [c for c in active_cases if c.get("track") == "COL"]
@@ -188,6 +200,7 @@ def compute_kpi_snapshot(
 
     return {
         "min_adr_age": min_adr_age,
+        "n_min": effective_n_min,
         "total_active_cases": len(active_cases),
         "counts_by_track": {
             "EGD": sum(1 for c in active_cases if c.get("track") == "EGD"),
@@ -199,23 +212,31 @@ def compute_kpi_snapshot(
             "denominator": len(cir_eligible),
             "rate_pct": _pct(cir_num, len(cir_eligible)),
             "target_pct": 90.0,
+            "n_min": effective_n_min,
+            "status": _rate_status(cir_num, len(cir_eligible), 90.0, effective_n_min),
         },
         "bbps_adequate": {
             "numerator": bbps_adequate_num,
             "denominator": len(bbps_eval),
             "rate_pct": _pct(bbps_adequate_num, len(bbps_eval)),
             "target_pct": 90.0,
+            "n_min": effective_n_min,
+            "status": _rate_status(bbps_adequate_num, len(bbps_eval), 90.0, effective_n_min),
         },
         "pdr": {
             "numerator": pdr_num,
             "denominator": len(adr_cohort_all),
             "rate_pct": _pct(pdr_num, len(adr_cohort_all)),
+            "n_min": effective_n_min,
+            "status": _rate_status(pdr_num, len(adr_cohort_all), None, effective_n_min),
         },
         "adr": {
             "numerator": adr_num,
             "denominator": len(adr_evaluated),
             "rate_pct": _pct(adr_num, len(adr_evaluated)),
             "target_pct": 35.0,
+            "n_min": effective_n_min,
+            "status": _rate_status(adr_num, len(adr_evaluated), 35.0, effective_n_min),
             "pending_gpb_excluded_count": len(adr_pending_gpb),
         },
         "ssldr": {
@@ -223,6 +244,8 @@ def compute_kpi_snapshot(
             "denominator": len(adr_evaluated),
             "rate_pct": _pct(ssldr_num, len(adr_evaluated)),
             "target_pct": 6.0,
+            "n_min": effective_n_min,
+            "status": _rate_status(ssldr_num, len(adr_evaluated), 6.0, effective_n_min),
             "pending_gpb_excluded_count": len(adr_pending_gpb),
         },
         "clean_withdrawal_time": {
@@ -236,6 +259,8 @@ def compute_kpi_snapshot(
             "denominator": len(ercp_native),
             "rate_pct": _pct(ercp_cann_num, len(ercp_native)),
             "target_pct": 90.0,
+            "n_min": effective_n_min,
+            "status": _rate_status(ercp_cann_num, len(ercp_native), 90.0, effective_n_min),
             "difficult_esge2016_count": ercp_diff_num,
         },
         "adverse_events_all": {

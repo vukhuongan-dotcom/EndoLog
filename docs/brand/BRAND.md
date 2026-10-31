@@ -1,8 +1,8 @@
 # Bộ Nhận Diện Thương Hiệu EndoLog v1 (`Phương Án B · Chàm Khói`)
 
 - **Dự án:** EndoLog (`endolog`) — Hệ thống sổ bộ lâm sàng & đánh giá chất lượng nội soi tiêu hoá
-- **Người chọn phương án (`31/10`):** `ThS. BSCKI. Nguyễn Bình An` — Khoa Nội soi Tiêu hóa, Bệnh viện Bình Dân
-- **Phê duyệt quản trị (`Superadmin`):** `BSCKII. Vũ Khương An` — Phó Trưởng Khoa Phẫu thuật Đại trực tràng, Bệnh viện Bình Dân
+- **Người chọn phương án (`31/10`):** `BSCKII. Vũ Khương An` — Phó Trưởng Khoa Phẫu thuật Đại trực tràng, Bệnh viện Bình Dân (`Superadmin`)
+- **Chủ nhiệm chuyên môn (`Primary Endoscopist`):** `ThS. BSCKI. Nguyễn Bình An` — Khoa Nội soi Tiêu hóa, Bệnh viện Bình Dân
 - **Phương án màu:** `Phương án B · Chàm khói` (tham chiếu artifact `"Nhận diện EndoLog"`)
 
 ---
@@ -76,7 +76,7 @@
 | Thủ thuật | `--proc-*` (Sáng / Tối) | `--proc-*-text` (Sáng / Tối) | `--proc-*-tint` (Sáng / Tối) |
 |---|---|---|---|
 | **Dạ dày (`EGD`)** | `#995EB2` / `#C18DD8` | `#6B3A7F` / `#DFBBEF` | `#F7EBFC` / `#2F1F36` |
-| **Đại tràng (`COL`)** | `#008F90` / `#16BBBC` | `#006263` / `#8ADBDB` | `#DEF6F5` / `#012D2D` |
+| **Đại trực tràng (`COL`)** | `#008F90` / `#16BBBC` | `#006263` / `#8ADBDB` | `#DEF6F5` / `#012D2D` |
 | **Mật tụy (`ERCP`)** | `#987600` / `#C0A241` | `#684F00` / `#DDCA8E` | `#F6F0DE` / `#2E2609` |
 
 ### C. Trạng thái lâm sàng (đồng bộ SurgiLog) & biểu đồ

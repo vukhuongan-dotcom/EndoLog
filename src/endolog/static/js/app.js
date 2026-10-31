@@ -12,23 +12,23 @@
 
   /* Bảng ánh xạ mã kỹ thuật sang nhãn tiếng Việt chuẩn lâm sàng (giữ nguyên mã máy trong API/dữ liệu) */
   const GUIDELINE_LABELS_VI = {
-    USMSTF_POST_POLYPECTOMY_2020: 'Hướng dẫn USMSTF 2020 (hậu cắt polyp đại trực tràng)',
-    ESGE_POST_POLYPECTOMY_2020: 'Hướng dẫn ESGE 2020 (hậu cắt polyp đại trực tràng)',
-    ESGE_ESD_2022: 'Hướng dẫn ESGE 2022 (sau cắt tách dưới niêm mạc ESD)',
-    CLINICIAN_DIRECTED_EGD: 'Theo chỉ định bác sĩ — nội soi thực quản, dạ dày, tá tràng',
-    CLINICIAN_DIRECTED_ERCP: 'Theo chỉ định bác sĩ — nội soi mật tụy ngược dòng (ERCP)'
+    USMSTF_POST_POLYPECTOMY_2020: 'USMSTF 2020',
+    ESGE_POST_POLYPECTOMY_2020: 'ESGE 2020',
+    ESGE_ESD_2022: 'ESGE ESD 2022',
+    CLINICIAN_DIRECTED_EGD: 'Theo chỉ định bác sĩ',
+    CLINICIAN_DIRECTED_ERCP: 'Theo chỉ định bác sĩ'
   };
 
   const GUIDELINE_SHORT_LABELS_VI = {
-    USMSTF_POST_POLYPECTOMY_2020: 'USMSTF 2020 — hậu cắt polyp',
-    ESGE_POST_POLYPECTOMY_2020: 'ESGE 2020 — hậu cắt polyp',
-    ESGE_ESD_2022: 'ESGE 2022 — sau ESD',
-    CLINICIAN_DIRECTED_EGD: 'Theo chỉ định bác sĩ — nội soi dạ dày',
-    CLINICIAN_DIRECTED_ERCP: 'Theo chỉ định bác sĩ — nội soi mật tụy'
+    USMSTF_POST_POLYPECTOMY_2020: 'USMSTF 2020',
+    ESGE_POST_POLYPECTOMY_2020: 'ESGE 2020',
+    ESGE_ESD_2022: 'ESGE ESD 2022',
+    CLINICIAN_DIRECTED_EGD: 'Theo chỉ định bác sĩ',
+    CLINICIAN_DIRECTED_ERCP: 'Theo chỉ định bác sĩ'
   };
 
   const RA_CUSUM_STATUS_LABELS_VI = {
-    DISABLED_UNVALIDATED_MODEL: 'Đang khóa hiệu chỉnh nguy cơ — chưa có mô hình ngoại kiểm tại đơn vị'
+    DISABLED_UNVALIDATED_MODEL: 'RA-CUSUM chưa bật (chưa có mô hình nguy cơ được thẩm định)'
   };
 
   const INDICATION_LABELS_VI = {
@@ -106,9 +106,9 @@
 
   const PEP_SEVERITY_LABELS_VI = {
     NONE: 'không ghi nhận',
-    MILD: 'mức độ nhẹ',
-    MODERATE: 'mức độ trung bình',
-    SEVERE: 'mức độ nặng'
+    MILD: 'mức nhẹ',
+    MODERATE: 'mức vừa',
+    SEVERE: 'mức nặng'
   };
 
   let sessionEpoch = 0;
@@ -227,59 +227,45 @@
   function humanizeClinicalBadgeLabelVi(rawLabel) {
     let txt = String(rawLabel || '').trim();
     if (!txt) return 'Đang cập nhật';
-    txt = txt.replace(/\bPEP\s+(MILD|MODERATE|SEVERE|NONE)\b/g, (_m, sev) => {
-      return 'PEP ' + (PEP_SEVERITY_LABELS_VI[sev] || 'ghi nhận');
+    txt = txt.replace(/(?:Biến cố\s+)?\bPEP\s+(MILD|MODERATE|SEVERE|NONE)\b/g, (_m, sev) => {
+      return 'Viêm tụy sau ERCP ' + (PEP_SEVERITY_LABELS_VI[sev] || 'ghi nhận');
     });
-    txt = txt.replace(/\bAGREE\s+(?!độ\b)(I{1,3}[ab]?|IV[ab]?|V)\b/g, 'AGREE độ $1');
     return sanitizeEnumFallbackVi(txt, 'Trạng thái lâm sàng');
   }
 
-  /* Đánh giá huy hiệu trạng thái KPI dựa trên tử số/mẫu số chính xác và hợp đồng KPI đã duyệt (B01) */
-  function evaluateKpiRateBadge(metricObj) {
+  /* Đánh giá huy hiệu trạng thái KPI dựa trên ngưỡng cỡ mẫu tối thiểu n_min (mặc định 20) và tử số/mẫu số chính xác (B01 + R3) */
+  function evaluateKpiRateBadge(metricObj, fallbackNMin) {
+    const nMin = (metricObj && typeof metricObj.n_min === 'number' && Number.isFinite(metricObj.n_min) && metricObj.n_min >= 1)
+      ? Math.floor(metricObj.n_min)
+      : ((typeof fallbackNMin === 'number' && Number.isFinite(fallbackNMin) && fallbackNMin >= 1) ? Math.floor(fallbackNMin) : 20);
     const den = metricObj && typeof metricObj.denominator === 'number' && Number.isFinite(metricObj.denominator)
       ? metricObj.denominator
       : 0;
     const rawRate = metricObj ? metricObj.rate_pct : null;
     const hasRate = typeof rawRate === 'number' && Number.isFinite(rawRate);
     const hasNum = Boolean(metricObj && typeof metricObj.numerator === 'number' && Number.isFinite(metricObj.numerator));
-    const pendingGpb = metricObj && typeof metricObj.pending_gpb_excluded_count === 'number' && Number.isFinite(metricObj.pending_gpb_excluded_count)
-      ? metricObj.pending_gpb_excluded_count
-      : 0;
 
-    if (den <= 0 || !hasRate) {
-      if (pendingGpb > 0) {
-        return { tone: 'pending', label: 'Chưa đủ dữ liệu (' + pendingGpb + ' ca chờ GPB)' };
-      }
-      return { tone: 'neutral', label: 'Chưa đủ dữ liệu' };
+    if (den < nMin || den <= 0 || !hasRate || (metricObj && metricObj.status === 'insufficient_n')) {
+      return { tone: 'neutral', label: 'Chưa đủ cỡ mẫu (n < ' + nMin + ')' };
     }
 
     const rawTarget = metricObj ? metricObj.target_pct : null;
     const hasTarget = typeof rawTarget === 'number' && Number.isFinite(rawTarget);
-    if (!hasTarget) {
+    if (!hasTarget || (metricObj && metricObj.status === 'no_target')) {
       return { tone: 'neutral', label: 'Chưa thiết lập ngưỡng' };
     }
 
     const target = rawTarget;
     const targetTxt = formatViNum(target) + '%';
     /* So sánh trực tiếp tử số/mẫu số khi có để tránh làm tròn 1 chữ số thập phân (ví dụ 36/103 = 34,95% -> 35,0%) tạo dương tính giả */
-    const meetsTarget = hasNum
-      ? (metricObj.numerator * 100 >= target * den - 1e-9)
-      : (rawRate >= target);
+    const meetsTarget = (metricObj && (metricObj.status === 'met' || metricObj.status === 'below_target'))
+      ? (metricObj.status === 'met')
+      : (hasNum ? (metricObj.numerator * 100 >= target * den - 1e-9) : (rawRate >= target));
 
     if (meetsTarget) {
-      return {
-        tone: 'ned',
-        label: pendingGpb > 0
-          ? ('Đạt ngưỡng ≥ ' + targetTxt + ' (' + pendingGpb + ' chờ GPB)')
-          : ('Đạt ngưỡng (≥ ' + targetTxt + ')')
-      };
+      return { tone: 'ned', label: 'Đạt ngưỡng (≥ ' + targetTxt + ')' };
     }
-    return {
-      tone: 'urgent',
-      label: pendingGpb > 0
-        ? ('Chưa đạt ngưỡng < ' + targetTxt + ' (' + pendingGpb + ' chờ GPB)')
-        : ('Chưa đạt ngưỡng (< ' + targetTxt + ')')
-    };
+    return { tone: 'urgent', label: 'Chưa đạt ngưỡng (< ' + targetTxt + ')' };
   }
 
   function describeUnclosedFollowupSuffix(aeAll) {
@@ -334,7 +320,7 @@
       return { tone: 'urgent', label: 'Có biến cố nặng AGREE ≥ III (' + severeNum + ' ca)' };
     }
     if (pepSevereNum > 0) {
-      return { tone: 'urgent', label: 'Có biến cố PEP mức độ nặng (' + pepSevereNum + ' ca)' };
+      return { tone: 'urgent', label: 'Có viêm tụy sau ERCP mức nặng (' + pepSevereNum + ' ca)' };
     }
     if (anyNum > 0 || pepNum > 0) {
       return {
@@ -546,13 +532,13 @@
     const window30dCount = all.filter((c) => c.followup_30d_status === 'PENDING_WINDOW').length;
 
     summaryEl.innerHTML = [
-      { label: 'Tổng ca đang quản lý', value: all.length, sub: 'EGD: ' + all.filter((x) => x.track === 'EGD').length + ' · COL: ' + all.filter((x) => x.track === 'COL').length + ' · ERCP: ' + all.filter((x) => x.track === 'ERCP').length },
-      { label: 'Cảnh báo Ngoại & biến cố', value: urgentCount, sub: 'Ưu tiên xử trí hội chẩn & theo dõi sát' },
-      { label: 'Hồ sơ đang chờ GPB', value: pendingGpbCount, sub: 'Mở trực tiếp Pha 4 ngay khi có kết quả' },
-      { label: 'Trong cửa sổ 14–30 ngày', value: window30dCount, sub: 'Theo dõi biến cố muộn sau thủ thuật' }
+      { label: 'Tổng ca đang quản lý', shortLabel: 'Tổng ca', value: all.length, sub: 'EGD: ' + all.filter((x) => x.track === 'EGD').length + ' · COL: ' + all.filter((x) => x.track === 'COL').length + ' · ERCP: ' + all.filter((x) => x.track === 'ERCP').length },
+      { label: 'Cảnh báo Ngoại & biến cố', shortLabel: 'Cảnh báo', value: urgentCount, sub: 'Ưu tiên xử trí hội chẩn & theo dõi sát' },
+      { label: 'Hồ sơ đang chờ GPB', shortLabel: 'Chờ GPB', value: pendingGpbCount, sub: 'Mở trực tiếp Pha 4 ngay khi có kết quả' },
+      { label: 'Trong cửa sổ 14–30 ngày', shortLabel: 'Theo dõi', value: window30dCount, sub: 'Theo dõi biến cố muộn sau thủ thuật' }
     ].map((s) => (
       '<article class="el-stat-card">' +
-      '<p class="el-stat-label">' + escapeHtml(s.label) + '</p>' +
+      '<p class="el-stat-label"><span class="el-stat-label-full">' + escapeHtml(s.label) + '</span><span class="el-stat-label-short">' + escapeHtml(s.shortLabel) + '</span></p>' +
       '<p class="el-stat-value">' + escapeHtml(s.value) + '</p>' +
       '<p class="el-stat-sub">' + escapeHtml(s.sub) + '</p>' +
       '</article>'
@@ -676,7 +662,7 @@
         '<div class="el-case-col">' +
         '<p class="el-field-kicker">Nguồn hướng dẫn áp dụng</p>' +
         '<p class="el-field-primary">' + escapeHtml(primaryGuideFull) + '</p>' +
-        '<p class="el-field-muted">Trạng thái vòng lặp: ' + escapeHtml(surv.fulfilled_by_case_id ? 'Đã soi lại & liên kết ca mới' : 'Đang mở theo dõi dọc') + '</p>' +
+        '<p class="el-field-muted">' + escapeHtml(surv.fulfilled_by_case_id ? 'Đã soi lại' : 'Đang theo dõi') + '</p>' +
         '</div>' +
         '</div>' +
         '</article>'
@@ -748,11 +734,14 @@
     if (!gridEl || !state.kpiBundle) return;
 
     const k = state.kpiBundle.kpi;
-    const cirBadge = evaluateKpiRateBadge(k.cir);
-    const bbpsBadge = evaluateKpiRateBadge(k.bbps_adequate);
-    const adrBadge = evaluateKpiRateBadge(k.adr);
-    const ssldrBadge = evaluateKpiRateBadge(k.ssldr);
-    const ercpBadge = evaluateKpiRateBadge(k.ercp_native_cannulation);
+    const nMin = (typeof k.n_min === 'number' && k.n_min >= 1)
+      ? k.n_min
+      : (state.kpiBundle.kpi_min_sample_size || 20);
+    const cirBadge = evaluateKpiRateBadge(k.cir, nMin);
+    const bbpsBadge = evaluateKpiRateBadge(k.bbps_adequate, nMin);
+    const adrBadge = evaluateKpiRateBadge(k.adr, nMin);
+    const ssldrBadge = evaluateKpiRateBadge(k.ssldr, nMin);
+    const ercpBadge = evaluateKpiRateBadge(k.ercp_native_cannulation, nMin);
     const aeBadge = evaluateAdverseEventKpiBadge(k.adverse_events_all, k.ercp_pep);
 
     const aePendingWindow = typeof k.adverse_events_all.pending_window_count === 'number'
@@ -811,7 +800,7 @@
         chips: ['EGD', 'COL', 'ERCP'],
         rate: formatViPct(k.adverse_events_all.agree_severe_rate_pct),
         frac: 'AGREE ≥ III: ' + k.adverse_events_all.agree_severe_numerator + ' / ' + k.adverse_events_all.completed_fu_denominator + ' ca hoàn tất theo dõi',
-        note: 'PEP sau ERCP: ' + k.ercp_pep.numerator + '/' + k.ercp_pep.completed_fu_denominator + ' ca · ' + aeNoteTail,
+        note: 'Viêm tụy sau ERCP: ' + k.ercp_pep.numerator + '/' + k.ercp_pep.completed_fu_denominator + ' ca · ' + aeNoteTail,
         badge: renderStatusBadge(aeBadge.tone, aeBadge.label)
       }
     ];

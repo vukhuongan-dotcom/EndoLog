@@ -205,10 +205,12 @@ def export_profile_c_summary(
 ) -> dict[str, Any]:
     """Profile C: Aggregated KPI report with k < 5 small-cell suppression."""
     cases = list(state_snapshot.get("cases", {}).values())
+    n_min_cfg = int((state_snapshot.get("settings") or {}).get("kpi_min_sample_size", 20))
     kpi = compute_kpi_snapshot(
         cases,
         patients_by_id=state_snapshot.get("patients", {}),
         min_adr_age=min_adr_age,
+        n_min=n_min_cfg,
     )
     metrics_rows = []
     for key, label in [

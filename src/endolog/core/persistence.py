@@ -37,7 +37,11 @@ def _fsync_dir(directory: Path) -> None:
         pass
 
 
-def default_initial_state(default_bootstrap_passwords: dict[str, str] | None = None) -> dict[str, Any]:
+def default_initial_state(
+    default_bootstrap_passwords: dict[str, str] | None = None,
+    *,
+    default_kpi_min_sample_size: int = 20,
+) -> dict[str, Any]:
     pw_map = default_bootstrap_passwords or {
         "vukhuongan": "EndoLog!Superadmin#2026",
         "nguyenbinhan": "EndoLog!BinhAn#2026",
@@ -83,6 +87,7 @@ def default_initial_state(default_bootstrap_passwords: dict[str, str] | None = N
             "colo_guideline_mode": "USMSTF_2020",
             "adr_min_age": 45,
             "cusum_preset": "DEFAULT_90",
+            "kpi_min_sample_size": max(1, int(default_kpi_min_sample_size)),
         },
         "users": users,
         "patients": {},
@@ -103,6 +108,7 @@ class AtomicJsonStore:
         backup_dir: Path,
         *,
         bootstrap_passwords: dict[str, str] | None = None,
+        default_kpi_min_sample_size: int = 20,
     ) -> None:
         self.data_dir = data_dir.resolve()
         self.backup_dir = backup_dir.resolve()
@@ -117,11 +123,15 @@ class AtomicJsonStore:
         self._thread_lock = threading.RLock()
         self._ipc_lock = fasteners.InterProcessLock(str(self.lock_path))
         self._bootstrap_passwords = bootstrap_passwords
+        self._default_kpi_min_sample_size = max(1, int(default_kpi_min_sample_size))
 
         with self._exclusive_lock():
             self._recover_if_interrupted()
             if not self.state_path.exists():
-                initial = default_initial_state(self._bootstrap_passwords)
+                initial = default_initial_state(
+                    self._bootstrap_passwords,
+                    default_kpi_min_sample_size=self._default_kpi_min_sample_size,
+                )
                 self._atomic_write_json(self.state_path, initial)
 
     @contextmanager
@@ -182,12 +192,15 @@ class AtomicJsonStore:
     def read_snapshot(self) -> dict[str, Any]:
         with self._exclusive_lock():
             raw = json.loads(self.state_path.read_text(encoding="utf-8"))
-            return copy.deepcopy(raw)
+            snap = copy.deepcopy(raw)
+            snap.setdefault("settings", {}).setdefault("kpi_min_sample_size", self._default_kpi_min_sample_size)
+            return snap
 
     def transact(self, mutator: Callable[[dict[str, Any]], Any]) -> Any:
         with self._exclusive_lock():
             current = json.loads(self.state_path.read_text(encoding="utf-8"))
             working = copy.deepcopy(current)
+            working.setdefault("settings", {}).setdefault("kpi_min_sample_size", self._default_kpi_min_sample_size)
             result = mutator(working)
             # Write rollback journal before replacing primary state
             self._atomic_write_json(self.wal_path, current)

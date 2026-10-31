@@ -264,14 +264,15 @@ def test_b01_kpi_status_badges_below_exact_above_and_zero_denominator() -> None:
         const zeroRatesBundle = {
           kpi: {
             min_adr_age: 45,
-            cir: { numerator: 0, denominator: 10, rate_pct: 0.0, target_pct: 90.0 },
-            bbps_adequate: { numerator: 0, denominator: 10, rate_pct: 0.0, target_pct: 90.0 },
-            pdr: { numerator: 0, denominator: 10, rate_pct: 0.0 },
-            adr: { numerator: 0, denominator: 10, rate_pct: 0.0, target_pct: 35.0, pending_gpb_excluded_count: 0 },
-            ssldr: { numerator: 0, denominator: 10, rate_pct: 0.0, target_pct: 6.0, pending_gpb_excluded_count: 0 },
-            ercp_native_cannulation: { numerator: 0, denominator: 10, rate_pct: 0.0, target_pct: 90.0, difficult_esge2016_count: 0 },
-            adverse_events_all: { agree_any_numerator: 0, agree_severe_numerator: 0, completed_fu_denominator: 10, agree_severe_rate_pct: 0.0, missing_or_pending_fu_count: 0 },
-            ercp_pep: { numerator: 0, completed_fu_denominator: 10, rate_pct: 0.0, missing_or_pending_fu_count: 0 },
+            n_min: 20,
+            cir: { numerator: 0, denominator: 20, rate_pct: 0.0, target_pct: 90.0, n_min: 20, status: 'below_target' },
+            bbps_adequate: { numerator: 0, denominator: 20, rate_pct: 0.0, target_pct: 90.0, n_min: 20, status: 'below_target' },
+            pdr: { numerator: 0, denominator: 20, rate_pct: 0.0, n_min: 20, status: 'no_target' },
+            adr: { numerator: 0, denominator: 20, rate_pct: 0.0, target_pct: 35.0, n_min: 20, status: 'below_target', pending_gpb_excluded_count: 2 },
+            ssldr: { numerator: 0, denominator: 20, rate_pct: 0.0, target_pct: 6.0, n_min: 20, status: 'below_target', pending_gpb_excluded_count: 2 },
+            ercp_native_cannulation: { numerator: 0, denominator: 20, rate_pct: 0.0, target_pct: 90.0, n_min: 20, status: 'below_target', difficult_esge2016_count: 0 },
+            adverse_events_all: { agree_any_numerator: 0, agree_severe_numerator: 0, completed_fu_denominator: 20, agree_severe_rate_pct: 0.0, missing_or_pending_fu_count: 0 },
+            ercp_pep: { numerator: 0, completed_fu_denominator: 20, rate_pct: 0.0, missing_or_pending_fu_count: 0 },
           },
           cusum_cir: { disclaimer_vi: 'CUSUM cá nhân', ra_cusum_status: 'DISABLED_UNVALIDATED_MODEL', h_limit: 2.89, points: [], trajectory: [0] },
           cusum_ercp: { disclaimer_vi: 'CUSUM cá nhân', ra_cusum_status: 'DISABLED_UNVALIDATED_MODEL', h_limit: 2.89, points: [], trajectory: [0] },
@@ -292,20 +293,22 @@ def test_b01_kpi_status_badges_below_exact_above_and_zero_denominator() -> None:
         const emptyHtml = elementsById['el-kpi-grid'].innerHTML;
 
         const api = sandbox.window.__ENDOLOG_RUNTIME_AUDIT__;
+        const smallSampleTwo = api.evaluateKpiRateBadge({ numerator: 2, denominator: 2, rate_pct: 100.0, target_pct: 90.0, n_min: 20, status: 'insufficient_n' });
+        const smallSampleNineteen = api.evaluateKpiRateBadge({ numerator: 19, denominator: 19, rate_pct: 100.0, target_pct: 90.0 });
         const below = [
-          api.evaluateKpiRateBadge({ denominator: 10, rate_pct: 89.9, target_pct: 90.0 }),
-          api.evaluateKpiRateBadge({ denominator: 10, rate_pct: 34.9, target_pct: 35.0 }),
-          api.evaluateKpiRateBadge({ denominator: 10, rate_pct: 5.9, target_pct: 6.0 }),
+          api.evaluateKpiRateBadge({ numerator: 17, denominator: 20, rate_pct: 85.0, target_pct: 90.0 }),
+          api.evaluateKpiRateBadge({ numerator: 6, denominator: 20, rate_pct: 30.0, target_pct: 35.0 }),
+          api.evaluateKpiRateBadge({ numerator: 1, denominator: 20, rate_pct: 5.0, target_pct: 6.0 }),
         ];
         const exact = [
-          api.evaluateKpiRateBadge({ denominator: 10, rate_pct: 90.0, target_pct: 90.0 }),
-          api.evaluateKpiRateBadge({ denominator: 20, rate_pct: 35.0, target_pct: 35.0 }),
-          api.evaluateKpiRateBadge({ denominator: 50, rate_pct: 6.0, target_pct: 6.0 }),
+          api.evaluateKpiRateBadge({ numerator: 18, denominator: 20, rate_pct: 90.0, target_pct: 90.0 }),
+          api.evaluateKpiRateBadge({ numerator: 7, denominator: 20, rate_pct: 35.0, target_pct: 35.0 }),
+          api.evaluateKpiRateBadge({ numerator: 3, denominator: 50, rate_pct: 6.0, target_pct: 6.0 }),
         ];
         const above = [
-          api.evaluateKpiRateBadge({ denominator: 10, rate_pct: 95.0, target_pct: 90.0 }),
-          api.evaluateKpiRateBadge({ denominator: 10, rate_pct: 50.0, target_pct: 35.0 }),
-          api.evaluateKpiRateBadge({ denominator: 10, rate_pct: 12.0, target_pct: 6.0 }),
+          api.evaluateKpiRateBadge({ numerator: 19, denominator: 20, rate_pct: 95.0, target_pct: 90.0 }),
+          api.evaluateKpiRateBadge({ numerator: 10, denominator: 20, rate_pct: 50.0, target_pct: 35.0, pending_gpb_excluded_count: 3 }),
+          api.evaluateKpiRateBadge({ numerator: 3, denominator: 25, rate_pct: 12.0, target_pct: 6.0 }),
         ];
         const zeroWithPendingGpb = api.evaluateKpiRateBadge({
           denominator: 0,
@@ -325,7 +328,8 @@ def test_b01_kpi_status_badges_below_exact_above_and_zero_denominator() -> None:
           rate_pct: 35.0,
           target_pct: 35.0,
         });
-        const noTarget = api.evaluateKpiRateBadge({ denominator: 8, rate_pct: 50.0, target_pct: null });
+        const noTarget = api.evaluateKpiRateBadge({ denominator: 20, rate_pct: 50.0, target_pct: null });
+        const customNMin10Met = api.evaluateKpiRateBadge({ numerator: 9, denominator: 10, rate_pct: 90.0, target_pct: 90.0, n_min: 10, status: 'met' });
         const aeSevere = api.evaluateAdverseEventKpiBadge(
           { completed_fu_denominator: 5, agree_severe_rate_pct: 20.0, agree_severe_numerator: 1, agree_any_numerator: 1, missing_or_pending_fu_count: 0 },
           { numerator: 0 }
@@ -347,8 +351,12 @@ def test_b01_kpi_status_badges_below_exact_above_and_zero_denominator() -> None:
           zeroDatChuanCount: (zeroHtml.match(/Đạt chuẩn/g) || []).length,
           zeroDatNguongCount: (zeroHtml.match(/Đạt ngưỡng/g) || []).length,
           zeroChuaDatCount: (zeroHtml.match(/Chưa đạt ngưỡng/g) || []).length,
-          emptyChuaDuDuLieuCount: (emptyHtml.match(/Chưa đủ dữ liệu/g) || []).length,
+          zeroTachBachGpbCount: (zeroHtml.match(/Tách bạch GPB/g) || []).length,
+          emptyInsufficientCount: (emptyHtml.match(/Chưa đủ cỡ mẫu \(n &lt; 20\)/g) || []).length,
+          emptyAeInsufficientCount: (emptyHtml.match(/Chưa đủ dữ liệu/g) || []).length,
           emptyDatCount: (emptyHtml.match(/Đạt chuẩn|Đạt ngưỡng/g) || []).length,
+          smallSampleTwo,
+          smallSampleNineteen,
           below,
           exact,
           above,
@@ -356,6 +364,7 @@ def test_b01_kpi_status_badges_below_exact_above_and_zero_denominator() -> None:
           nullDenominator,
           roundingBoundary36Over103,
           noTarget,
+          customNMin10Met,
           aeSevere,
           aePepSevereOnly,
           aeLostToFollowupOnly,
@@ -368,19 +377,24 @@ def test_b01_kpi_status_badges_below_exact_above_and_zero_denominator() -> None:
     assert res["zeroDatChuanCount"] == 0
     assert res["zeroDatNguongCount"] == 0
     assert res["zeroChuaDatCount"] == 5
-    assert res["emptyChuaDuDuLieuCount"] == 6
+    assert res["zeroTachBachGpbCount"] == 0
+    assert res["emptyInsufficientCount"] == 5
+    assert res["emptyAeInsufficientCount"] == 1
     assert res["emptyDatCount"] == 0
 
-    assert all(b["tone"] == "urgent" and "Chưa đạt ngưỡng" in b["label"] for b in res["below"])
-    assert all(b["tone"] == "ned" and "Đạt ngưỡng" in b["label"] for b in res["exact"])
-    assert all(b["tone"] == "ned" and "Đạt ngưỡng" in b["label"] for b in res["above"])
-    assert res["zeroWithPendingGpb"] == {"tone": "pending", "label": "Chưa đủ dữ liệu (2 ca chờ GPB)"}
-    assert res["nullDenominator"] == {"tone": "neutral", "label": "Chưa đủ dữ liệu"}
+    assert res["smallSampleTwo"] == {"tone": "neutral", "label": "Chưa đủ cỡ mẫu (n < 20)"}
+    assert res["smallSampleNineteen"] == {"tone": "neutral", "label": "Chưa đủ cỡ mẫu (n < 20)"}
+    assert all(b["tone"] == "urgent" and "Chưa đạt ngưỡng" in b["label"] and "GPB" not in b["label"] for b in res["below"])
+    assert all(b["tone"] == "ned" and "Đạt ngưỡng" in b["label"] and "GPB" not in b["label"] for b in res["exact"])
+    assert all(b["tone"] == "ned" and "Đạt ngưỡng" in b["label"] and "GPB" not in b["label"] for b in res["above"])
+    assert res["zeroWithPendingGpb"] == {"tone": "neutral", "label": "Chưa đủ cỡ mẫu (n < 20)"}
+    assert res["nullDenominator"] == {"tone": "neutral", "label": "Chưa đủ cỡ mẫu (n < 20)"}
     assert res["roundingBoundary36Over103"] == {"tone": "urgent", "label": "Chưa đạt ngưỡng (< 35%)"}
     assert res["noTarget"] == {"tone": "neutral", "label": "Chưa thiết lập ngưỡng"}
+    assert res["customNMin10Met"] == {"tone": "ned", "label": "Đạt ngưỡng (≥ 90%)"}
     assert res["aeSevere"]["tone"] == "urgent"
     assert "AGREE ≥ III" in res["aeSevere"]["label"]
-    assert res["aePepSevereOnly"] == {"tone": "urgent", "label": "Có biến cố PEP mức độ nặng (1 ca)"}
+    assert res["aePepSevereOnly"] == {"tone": "urgent", "label": "Có viêm tụy sau ERCP mức nặng (1 ca)"}
     assert res["aeLostToFollowupOnly"] == {"tone": "neutral", "label": "0 biến cố đã đóng · 2 ca mất dấu theo dõi"}
     assert res["aePendingWindowOnly"] == {"tone": "due", "label": "Chưa đủ dữ liệu (3 ca chờ cửa sổ)"}
 
@@ -776,6 +790,7 @@ def test_b03_zero_phi_http_headers_and_httponly_cookie_contract(tmp_path: Path) 
     api_paths = [
         "/api/health",
         "/api/auth/me",
+        "/api/settings",
         "/api/cases",
         "/api/surveillance",
         "/api/metrics/kpi",
@@ -792,6 +807,15 @@ def test_b03_zero_phi_http_headers_and_httponly_cookie_contract(tmp_path: Path) 
         assert resp.headers.get("pragma") == "no-cache"
         assert resp.headers.get("expires") == "0"
         assert "default-src 'self'" in resp.headers.get("content-security-policy", "")
+
+    # Verify R3 kpi_min_sample_size setting defaults to 20 and BS. An can update it via PATCH /api/settings
+    assert client.get("/api/settings").json()["kpi_min_sample_size"] == 20
+    r_patch_nmin = client.patch("/api/settings", json={"kpi_min_sample_size": 2})
+    assert r_patch_nmin.status_code == 200
+    assert r_patch_nmin.json()["kpi_min_sample_size"] == 2
+    assert client.get("/api/metrics/kpi").json()["kpi"]["cir"]["status"] == "met"
+    assert client.patch("/api/settings", json={"kpi_min_sample_size": 20}).json()["kpi_min_sample_size"] == 20
+    assert client.get("/api/metrics/kpi").json()["kpi"]["cir"]["status"] == "insufficient_n"
 
     r_logout = client.post("/api/auth/logout")
     assert r_logout.status_code == 200
@@ -1030,17 +1054,19 @@ def test_b04_vietnamese_ui_labels_while_preserving_api_machine_enums(tmp_path: P
     assert raw_pep_matches == [], f"Raw English PEP severity leaked into UI: {raw_pep_matches}"
     assert "Sinh thiết kìm 0 mảnh" not in combined_ui_text
 
-    assert "USMSTF 2020 — hậu cắt polyp" in combined_ui_text
-    assert "Hướng dẫn ESGE 2022 (sau cắt tách dưới niêm mạc ESD)" in combined_ui_text
+    assert "USMSTF 2020" in combined_ui_text
+    assert "ESGE ESD 2022" in combined_ui_text
     assert "Cắt tách dưới niêm mạc (ESD) (diện cắt R0)" in combined_ui_text
     assert "Cắt niêm mạc nguyên khối qua nội soi (EMR) (diện cắt R0)" in combined_ui_text
     assert "Quan sát chẩn đoán · Không bấm sinh thiết" in combined_ui_text
     assert "Không ghi nhận tổn thương khu trú" in combined_ui_text
-    assert "Theo chỉ định bác sĩ — nội soi thực quản, dạ dày, tá tràng" in combined_ui_text
-    assert "Theo chỉ định bác sĩ — nội soi mật tụy ngược dòng (ERCP)" in combined_ui_text
-    assert "Biến cố PEP mức độ nhẹ · AGREE độ II" in combined_ui_text
-    assert "Biến cố PEP mức độ trung bình · AGREE độ IIIa" in combined_ui_text
+    assert "Theo chỉ định bác sĩ" in combined_ui_text
+    assert "Viêm tụy sau ERCP mức nhẹ · AGREE II" in combined_ui_text
+    assert "Viêm tụy sau ERCP mức vừa · AGREE IIIa" in combined_ui_text
     assert "Có biến cố sau thủ thuật (chưa phân độ AGREE)" in combined_ui_text
     assert "Hẹp đường mật nghi ác tính" in combined_ui_text
-    assert "Đang khóa hiệu chỉnh nguy cơ — chưa có mô hình ngoại kiểm tại đơn vị" in combined_ui_text
+    assert "RA-CUSUM chưa bật (chưa có mô hình nguy cơ được thẩm định)" in combined_ui_text
+    assert "Đang theo dõi" in rendered["survText"]
+    assert "Trạng thái vòng lặp" not in combined_ui_text
+    assert "Đang mở theo dõi dọc" not in combined_ui_text
     assert esd_case_code in rendered["searchThanViText"]

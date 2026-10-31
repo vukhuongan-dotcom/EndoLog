@@ -18,6 +18,7 @@ DEV_JWT_FALLBACK = "endolog-local-dev-only-jwt-secret-not-for-prod-32b"
 DEV_RESEARCH_FALLBACK = "endolog-local-dev-only-research-hmac-key-32bytes"
 DEV_SHIFT_FALLBACK = "endolog-local-dev-only-date-shift-hmac-key-32b"
 SESSION_TIMEOUT_SECONDS = 15 * 60  # 15 minutes strict idle/token lifetime
+DEFAULT_KPI_MIN_SAMPLE_SIZE = 20  # Default minimum denominator n_min for personal KPI proportions
 
 
 def repo_root() -> Path:
@@ -35,6 +36,7 @@ class EndoLogSettings:
     master_research_key: bytes
     shift_key: bytes
     session_timeout_seconds: int = SESSION_TIMEOUT_SECONDS
+    kpi_min_sample_size: int = DEFAULT_KPI_MIN_SAMPLE_SIZE
 
     @property
     def has_phi_vault_marker(self) -> bool:
@@ -97,6 +99,8 @@ def load_settings(environ: dict[str, str] | None = None) -> EndoLogSettings:
     jwt_secret = (env_map.get("ENDOLOG_JWT_SECRET") or DEV_JWT_FALLBACK).strip()
     research_key = (env_map.get("ENDOLOG_MASTER_RESEARCH_KEY") or DEV_RESEARCH_FALLBACK).encode("utf-8")
     shift_key = (env_map.get("ENDOLOG_SHIFT_KEY") or DEV_SHIFT_FALLBACK).encode("utf-8")
+    raw_n_min = (env_map.get("ENDOLOG_KPI_MIN_SAMPLE_SIZE") or "").strip()
+    kpi_min_sample_size = max(1, int(raw_n_min)) if raw_n_min.isdigit() else DEFAULT_KPI_MIN_SAMPLE_SIZE
 
     settings = EndoLogSettings(
         env_mode=env_mode,
@@ -107,6 +111,7 @@ def load_settings(environ: dict[str, str] | None = None) -> EndoLogSettings:
         jwt_secret=jwt_secret,
         master_research_key=research_key,
         shift_key=shift_key,
+        kpi_min_sample_size=kpi_min_sample_size,
     )
     settings.validate_startup_safety()
     return settings

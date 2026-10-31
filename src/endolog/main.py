@@ -54,6 +54,7 @@ class SettingsPatchRequest(BaseModel):
     colo_guideline_mode: str | None = None
     adr_min_age: int | None = None
     cusum_preset: str | None = None
+    kpi_min_sample_size: int | None = Field(default=None, ge=1, le=500)
 
 
 class ProfileABackupRequest(BaseModel):
@@ -70,7 +71,12 @@ def create_app(
     bootstrap_passwords: dict[str, str] | None = None,
 ) -> FastAPI:
     cfg = settings or load_settings()
-    store = AtomicJsonStore(cfg.data_dir, cfg.backup_dir, bootstrap_passwords=bootstrap_passwords)
+    store = AtomicJsonStore(
+        cfg.data_dir,
+        cfg.backup_dir,
+        bootstrap_passwords=bootstrap_passwords,
+        default_kpi_min_sample_size=cfg.kpi_min_sample_size,
+    )
     svc = EndoLogService(cfg, store)
 
     if auto_seed_synthetic and cfg.env_mode == "local_dev_synthetic":
@@ -399,10 +405,12 @@ def create_app(
         effective_age = int(min_adr_age or snap["settings"].get("adr_min_age", 45))
         if effective_age not in (45, 50):
             raise HTTPException(status_code=422, detail="Ngưỡng tuổi ADR chỉ hỗ trợ 45 hoặc 50.")
+        effective_n_min = max(1, int(snap["settings"].get("kpi_min_sample_size", cfg.kpi_min_sample_size)))
         kpi = compute_kpi_snapshot(
             list(snap["cases"].values()),
             patients_by_id=snap["patients"],
             min_adr_age=effective_age,
+            n_min=effective_n_min,
         )
         cusum_cir = build_cusum_series_from_cases(
             list(snap["cases"].values()),
@@ -419,6 +427,7 @@ def create_app(
             "cusum_cir": cusum_cir,
             "cusum_ercp": cusum_ercp,
             "colo_guideline_mode": snap["settings"].get("colo_guideline_mode", "USMSTF_2020"),
+            "kpi_min_sample_size": effective_n_min,
         }
 
     @app.get("/api/metrics/cusum")
@@ -447,6 +456,13 @@ def create_app(
             "recent_entries": list(reversed(snap["audit_chain"][-20:])),
         }
 
+    @app.get("/api/settings")
+    def get_settings_endpoint(
+        claims: dict[str, Any] = Depends(get_current_user),
+    ) -> dict[str, Any]:
+        _ = claims
+        return store.read_snapshot()["settings"]
+
     @app.patch("/api/settings")
     def update_settings_endpoint(
         patch: SettingsPatchRequest,
@@ -459,6 +475,8 @@ def create_app(
                 st["settings"]["adr_min_age"] = patch.adr_min_age
             if patch.cusum_preset in ("DEFAULT_90", "SCREENING_CIR_95"):
                 st["settings"]["cusum_preset"] = patch.cusum_preset
+            if patch.kpi_min_sample_size is not None:
+                st["settings"]["kpi_min_sample_size"] = int(patch.kpi_min_sample_size)
             st["audit_chain"].append(
                 build_audit_entry(
                     st["audit_chain"],

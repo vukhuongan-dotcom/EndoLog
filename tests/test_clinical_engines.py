@@ -165,3 +165,80 @@ def test_tabular_qc_cusum_wald_boundary_and_ra_disabled() -> None:
     assert res["w_failure"] == 0.693147
     assert res["h_limit"] == 2.890372
     assert res["alarm_case_number"] == 7
+
+
+def test_kpi_minimum_sample_size_insufficient_n_vs_met_and_below_target() -> None:
+    # R3: denominator == 2 (< n_min = 20 default) -> "insufficient_n" even when 100% (2/2)
+    two_col_and_ercp = [
+        {
+            "case_id": f"col_small_{i}",
+            "track": "COL",
+            "age": 55,
+            "indication": "SCREENING",
+            "cecal_intubation": "YES",
+            "bbps_segments": [3, 3, 3],
+            "pathology_completion_status": "COMPLETE",
+            "followup_30d_status": "COMPLETED_NO_AE",
+            "whole_case_summary": {
+                "macroscopic_polyp_count": 1,
+                "any_confirmed_adenoma": "YES",
+                "any_confirmed_ssl": "YES",
+            },
+        }
+        for i in range(2)
+    ] + [
+        {
+            "case_id": f"ercp_small_{i}",
+            "track": "ERCP",
+            "pathology_completion_status": "NOT_APPLICABLE",
+            "followup_30d_status": "COMPLETED_NO_AE",
+            "ercp_detail": {"papilla_status": "NATIVE_INTACT", "selective_cannulation": "SUCCESS"},
+        }
+        for i in range(2)
+    ]
+    kpi_small = compute_kpi_snapshot(two_col_and_ercp, min_adr_age=45)
+    assert kpi_small["n_min"] == 20
+    for key in ("cir", "bbps_adequate", "adr", "ssldr", "ercp_native_cannulation", "pdr"):
+        assert kpi_small[key]["denominator"] == 2
+        assert kpi_small[key]["status"] == "insufficient_n"
+
+    # R3: denominator == 20 meeting each KPI threshold -> "met" (and below threshold -> "below_target")
+    twenty_cases = [
+        {
+            "case_id": f"col_20_{i}",
+            "track": "COL",
+            "age": 52,
+            "indication": "SCREENING",
+            "cecal_intubation": "YES",
+            "bbps_segments": [3, 3, 3] if i < 18 else [3, 2, 1],  # 18/20 = 90.0% >= 90%
+            "pathology_completion_status": "COMPLETE",
+            "followup_30d_status": "COMPLETED_NO_AE",
+            "whole_case_summary": {
+                "macroscopic_polyp_count": 1 if i < 9 else 0,
+                "any_confirmed_adenoma": "YES" if i < 7 else "NO",  # 7/20 = 35.0% >= 35%
+                "any_confirmed_ssl": "YES" if i < 2 else "NO",  # 2/20 = 10.0% >= 6%
+            },
+        }
+        for i in range(20)
+    ] + [
+        {
+            "case_id": f"ercp_20_{i}",
+            "track": "ERCP",
+            "pathology_completion_status": "NOT_APPLICABLE",
+            "followup_30d_status": "COMPLETED_NO_AE",
+            "ercp_detail": {
+                "papilla_status": "NATIVE_INTACT",
+                "selective_cannulation": "SUCCESS" if i < 18 else "FAILURE",  # 18/20 = 90.0% >= 90%
+            },
+        }
+        for i in range(20)
+    ]
+    kpi_twenty = compute_kpi_snapshot(twenty_cases, min_adr_age=45, n_min=20)
+    for key in ("cir", "bbps_adequate", "adr", "ssldr", "ercp_native_cannulation"):
+        assert kpi_twenty[key]["denominator"] == 20
+        assert kpi_twenty[key]["status"] == "met"
+    assert kpi_twenty["pdr"]["status"] == "no_target"
+
+    # Custom BS. An n_min override (e.g., n_min = 25 makes n = 20 -> "insufficient_n"; n_min = 2 makes n = 2 -> "met")
+    assert compute_kpi_snapshot(twenty_cases, n_min=25)["adr"]["status"] == "insufficient_n"
+    assert compute_kpi_snapshot(two_col_and_ercp, n_min=2)["adr"]["status"] == "met"

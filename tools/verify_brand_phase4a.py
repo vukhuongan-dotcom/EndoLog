@@ -285,7 +285,7 @@ def main() -> int:
                 failures,
             )
 
-        # 4. Verify B04 (0 raw machine enums in UI across all 3 screens) & B01 (no hardcoded 'Đạt chuẩn', data-driven KPI badges)
+        # 4. Verify R2/B04 (0 raw machine enums in UI across all 3 screens) & R3/B01 (n_min=20 sample size guard, 0 'Đạt chuẩn')
         enum_errs: list[str] = []
         kpi_errs: list[str] = []
         page.set_viewport_size({"width": 1440, "height": 960})
@@ -302,32 +302,96 @@ def main() -> int:
             enum_errs.append(f"Xuất hiện mã enum kỹ thuật thô trên giao diện: {raw_snake}")
         if raw_pep:
             enum_errs.append(f"Xuất hiện mức độ PEP tiếng Anh thô trên giao diện: {raw_pep}")
+        for forbidden_phrase in (
+            "COL · Đại tràng",
+            "Trạng thái vòng lặp",
+            "Đang mở theo dõi dọc",
+        ):
+            if forbidden_phrase in combined_text:
+                enum_errs.append(f"Vẫn còn thuật ngữ nội bộ hoặc nhãn cũ trên giao diện: '{forbidden_phrase}'")
         for expected_phrase in (
-            "USMSTF 2020 — hậu cắt polyp",
-            "Theo chỉ định bác sĩ — nội soi thực quản, dạ dày, tá tràng",
-            "Theo chỉ định bác sĩ — nội soi mật tụy ngược dòng (ERCP)",
-            "Biến cố PEP mức độ nhẹ · AGREE độ II",
-            "Đang khóa hiệu chỉnh nguy cơ — chưa có mô hình ngoại kiểm tại đơn vị",
+            "COL · Đại trực tràng",
+            "USMSTF 2020",
+            "Theo chỉ định bác sĩ",
+            "Viêm tụy sau ERCP mức nhẹ · AGREE II",
+            "RA-CUSUM chưa bật (chưa có mô hình nguy cơ được thẩm định)",
+            "Đang theo dõi",
         ):
             if expected_phrase not in combined_text:
                 enum_errs.append(f"Thiếu nhãn tiếng Việt kỳ vọng trên giao diện: '{expected_phrase}'")
         report_gate(
             "UI_VIETNAMESE_LABELS_NO_RAW_ENUMS",
             enum_errs,
-            "0 mã UPPER_SNAKE_CASE · 0 nhãn PEP tiếng Anh trên cả 3 màn hình",
+            "0 mã UPPER_SNAKE_CASE · 0 PEP tiếng Anh · chuẩn hóa đầy đủ COL · Đại trực tràng, USMSTF 2020, Theo chỉ định bác sĩ, Viêm tụy sau ERCP mức nhẹ · AGREE II, RA-CUSUM chưa bật, Đang theo dõi",
             failures,
         )
 
         if "Đạt chuẩn" in view_texts["quality"]:
             kpi_errs.append("Vẫn còn nhãn cố định 'Đạt chuẩn' trên màn Chỉ số chất lượng")
-        if view_texts["quality"].count("Đạt ngưỡng") != 5:
-            kpi_errs.append(f"5 thẻ KPI có ngưỡng chuẩn trên 5 ca OD-05 phải hiển thị 'Đạt ngưỡng', thực tế: {view_texts['quality']}")
+        if "Tách bạch GPB" in view_texts["quality"]:
+            kpi_errs.append("Vẫn còn pill 'Tách bạch GPB' trên màn Chỉ số chất lượng")
+        if view_texts["quality"].count("Chưa đủ cỡ mẫu (n < 20)") != 5:
+            kpi_errs.append(
+                f"5 thẻ tỷ lệ cá nhân trên 5 ca OD-05 (mẫu số 1–2 < n_min=20) phải hiện 'Chưa đủ cỡ mẫu (n < 20)', thực tế: {view_texts['quality']}"
+            )
         if "Có biến cố nhẹ/vừa · 1 ca chờ cửa sổ" not in view_texts["quality"]:
-            kpi_errs.append("Thẻ biến cố 30 ngày không phản ánh đúng PEP nhẹ + 1 ca đang chờ cửa sổ 30 ngày")
+            kpi_errs.append("Thẻ biến cố 30 ngày không phản ánh đúng viêm tụy nhẹ + 1 ca đang chờ cửa sổ 30 ngày")
         report_gate(
             "KPI_DYNAMIC_STATUS_BADGES",
             kpi_errs,
-            "0 nhãn 'Đạt chuẩn' cố định · 5 thẻ tính động theo ngưỡng hợp đồng KPI + 1 thẻ biến cố phản ánh dữ liệu thực",
+            "0 nhãn 'Đạt chuẩn' / 'Tách bạch GPB' · 5/5 thẻ tỷ lệ cá nhân gắn pill trung tính 'Chưa đủ cỡ mẫu (n < 20)' khi mẫu số 1–2 ca + 1 thẻ biến cố phản ánh dữ liệu thực",
+            failures,
+        )
+
+        # 4B. Verify R4 (Primary CTA slot empty for Phase 4B, Export button demoted, 390x844 1-row 4-cell KPI & first case y <= 700 px)
+        r4_errs: list[str] = []
+        set_theme_if_needed(page, "light")
+        page.set_viewport_size({"width": 390, "height": 844})
+        switch_to_view(page, "cases", 390)
+        page.evaluate("() => window.scrollTo(0, 0)")
+        page.wait_for_timeout(120)
+        r4_metrics = page.evaluate(
+            """() => {
+                const headPrimaryBtns = document.querySelectorAll('#el-view-cases .el-section-head button').length;
+                const anyPrimaryBtnsInCases = document.querySelectorAll('#el-view-cases .el-btn--primary').length;
+                const exportBtn = document.getElementById('el-btn-export-csv');
+                const exportInExportBar = !!(exportBtn && exportBtn.closest('.el-export-bar'));
+                const exportIsOutlined = !!(exportBtn && !exportBtn.classList.contains('el-btn--primary'));
+                const statCards = Array.from(document.querySelectorAll('#el-cases-summary .el-stat-card'));
+                const statTops = statCards.map(el => Math.round(el.getBoundingClientRect().top));
+                const distinctTops = Array.from(new Set(statTops));
+                const subHidden = statCards.every(el => {
+                    const sub = el.querySelector('.el-stat-sub');
+                    return sub && getComputedStyle(sub).display === 'none';
+                });
+                const firstCard = document.querySelector('#el-case-list .el-case-card');
+                const firstCardRect = firstCard ? firstCard.getBoundingClientRect() : null;
+                const firstCaseY = firstCardRect ? Math.round((firstCardRect.top + window.scrollY) * 10) / 10 : 9999;
+                return {
+                    headPrimaryBtns,
+                    anyPrimaryBtnsInCases,
+                    exportInExportBar,
+                    exportIsOutlined,
+                    statCardCount: statCards.length,
+                    distinctTopCount: distinctTops.length,
+                    statTops,
+                    subHidden,
+                    firstCaseY,
+                };
+            }"""
+        )
+        if r4_metrics["headPrimaryBtns"] != 0 or r4_metrics["anyPrimaryBtnsInCases"] != 0:
+            r4_errs.append(f"Đầu trang Nhật ký ca soi vẫn còn nút chính chưa để trống cho Phase 4B: {r4_metrics}")
+        if not r4_metrics["exportInExportBar"] or not r4_metrics["exportIsOutlined"]:
+            r4_errs.append(f"Nút Xuất bảng nghiên cứu chưa chuyển thành nút phụ trong khu Xuất dữ liệu: {r4_metrics}")
+        if r4_metrics["statCardCount"] != 4 or r4_metrics["distinctTopCount"] != 1 or not r4_metrics["subHidden"]:
+            r4_errs.append(f"4 ô tóm tắt trên điện thoại 390px chưa gộp gọn 1 hàng ngang ẩn giải thích: {r4_metrics}")
+        if r4_metrics["firstCaseY"] > 700.0:
+            r4_errs.append(f"Ca đầu tiên ở 390x844 bắt đầu tại y={r4_metrics['firstCaseY']}px > mục tiêu 700px")
+        report_gate(
+            "MOBILE_390_FIRST_CASE_Y",
+            r4_errs,
+            f"firstCaseCardTopY={r4_metrics['firstCaseY']}px (<= 700px target, viewport=390x844) · 1-row 4-cell KPI (tops={r4_metrics['statTops']}) · headerButtons=0 · exportOutlinedInExportBar=True",
             failures,
         )
 
@@ -380,6 +444,7 @@ def main() -> int:
         # 6. Touch-Target Ergonomics Audit (>= 44x44 px) across (390, 1440) x 3 views x (light, dark)
         touch_errs: list[str] = []
         checked_targets = 0
+        per_theme_counts: dict[str, int] = {"light": 0, "dark": 0}
         for theme_mode in ("light", "dark"):
             set_theme_if_needed(page, theme_mode)
             for width, height in [(390, 844), (1440, 960)]:
@@ -410,14 +475,17 @@ def main() -> int:
                     )
                     for it in items:
                         checked_targets += 1
+                        per_theme_counts[theme_mode] += 1
                         if it["w"] < 44 or it["h"] < 44:
                             touch_errs.append(
                                 f"{theme_mode}/{width}px/{view_key} <{it['tag']}#{it['id']} '{it['text']}'> = {it['w']}x{it['h']}px"
                             )
+        if per_theme_counts["light"] != 58 or per_theme_counts["dark"] != 58:
+            touch_errs.append(f"Số lượng vùng chạm mỗi chế độ thay đổi so với chuẩn 58/58: {per_theme_counts}")
         report_gate(
             "TOUCH_TARGETS_44PX",
             touch_errs,
-            f"{checked_targets}/{checked_targets} lượt kiểm tra phần tử tương tác hiển thị đạt >= 44x44 px (phạm vi: 2 khung nhìn 390/1440 px × 3 màn × 2 chế độ Sáng/Tối)",
+            f"58/58 vùng chạm Sáng + 58/58 vùng chạm Tối ({checked_targets}/{checked_targets} tổng lượt kiểm tra >= 44x44 px trên 390/1440 px × 3 màn)",
             failures,
         )
 

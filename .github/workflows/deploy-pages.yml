@@ -74,20 +74,23 @@ jobs:
           python tools/check_contrast.py
           python scripts/check_ssot.py
 
-      - name: Gate C.4 — Build Showcase-Only Synthetic Sandbox (/endolog/)
+      - name: Gate C.4 — Build Showcase-Only Synthetic Sandbox (/${{ github.event.repository.name }}/)
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python tools/build_gh_pages_demo.py --output dist_pages --base-path /endolog/
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}/
+        run: python tools/build_gh_pages_demo.py --output dist_pages --base-path "${PAGES_BASE_PATH}"
 
       - name: Gate C.5 — Verify dist_pages/ Zero-PHI & Secret Clean-Room
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python tools/verify_gate_c_clean_room.py --check-dist --dist-dir dist_pages --base-path /endolog/ --require-gitleaks
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}/
+        run: python tools/verify_gate_c_clean_room.py --check-dist --dist-dir dist_pages --base-path "${PAGES_BASE_PATH}" --require-gitleaks
 
-      - name: Gate C.6 — Run Playwright TC-G06 Subpath E2E Verification (/endolog/)
+      - name: Gate C.6 — Run Playwright TC-G06 Subpath E2E Verification (/${{ github.event.repository.name }}/)
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python tools/verify_gh_pages_playwright_g06.py --dist-dir dist_pages
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}/
+        run: python tools/verify_gh_pages_playwright_g06.py --dist-dir dist_pages --base-path "${PAGES_BASE_PATH}"
 
       - name: Upload Pages Artifact (main / manual dispatch only)
         if: github.event_name != 'pull_request'

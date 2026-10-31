@@ -213,7 +213,7 @@ def run_playwright_g06(dist_dir: Path, *, base_path: str = "/endolog/", capture_
             page.evaluate(
                 """async () => {
                     const c = await caches.open('idea-agent-sibling-v1');
-                    await c.put(new Request('/endolog/?sibling_probe=1'), new Response('ok'));
+                    await c.put(new Request(window.location.pathname + '?sibling_probe=1'), new Response('ok'));
                 }"""
             )
 

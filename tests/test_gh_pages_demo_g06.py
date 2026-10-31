@@ -118,6 +118,12 @@ def test_g06_sw_demo_prefix_isolation_and_manifest_subpath_scope(tmp_path: Path)
     assert "k.startsWith(CACHE_PREFIX)" in sw_text
     assert not (out_dir / "sw.js").exists()
 
+    # Verify case-sensitive GitHub repository subpath (/EndoLog/) parity as well
+    out_camel = tmp_path / "dist_pages_camel"
+    build_gh_pages_demo(out_camel, base_path="/EndoLog/")
+    camel_errs, _ = verify_dist_pages_bundle(out_camel, base_path="/EndoLog/", require_gitleaks=False)
+    assert camel_errs == []
+
 
 def test_g06_clean_room_verifier_catches_regressions(tmp_path: Path) -> None:
     git_errs, git_metrics = verify_git_clean_room(REPO_ROOT, require_gitleaks=False)
@@ -161,9 +167,10 @@ def test_g06_github_actions_workflow_contract() -> None:
     assert "pytest -p no:cacheprovider -v" in wf_txt
     assert "tools/check_contrast.py" in wf_txt
     assert "scripts/check_ssot.py" in wf_txt
-    assert "tools/build_gh_pages_demo.py --output dist_pages --base-path /endolog/" in wf_txt
-    assert "verify_gate_c_clean_room.py --check-dist --dist-dir dist_pages --base-path /endolog/ --require-gitleaks" in wf_txt
-    assert "verify_gh_pages_playwright_g06.py --dist-dir dist_pages" in wf_txt
+    assert "PAGES_BASE_PATH: /${{ github.event.repository.name }}/" in wf_txt
+    assert 'tools/build_gh_pages_demo.py --output dist_pages --base-path "${PAGES_BASE_PATH}"' in wf_txt
+    assert 'verify_gate_c_clean_room.py --check-dist --dist-dir dist_pages --base-path "${PAGES_BASE_PATH}" --require-gitleaks' in wf_txt
+    assert 'verify_gh_pages_playwright_g06.py --dist-dir dist_pages --base-path "${PAGES_BASE_PATH}"' in wf_txt
     assert "actions/upload-pages-artifact@v3" in wf_txt
     assert "actions/deploy-pages@v4" in wf_txt
     assert "github.event_name != 'pull_request'" in wf_txt

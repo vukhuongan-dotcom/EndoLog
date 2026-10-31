@@ -5,6 +5,13 @@ Mọi thay đổi đáng chú ý của dự án **EndoLog** (*Hệ Thống Sổ 
 Định dạng tuân thủ chuẩn [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) và quy tắc đánh số phiên bản theo [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) (`MAJOR.MINOR.PATCH`).
 Các nhóm phân loại hợp lệ: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+## [0.2.2] - 2026-10-31
+
+### Changed
+- Tinh gọn chống trùng lặp trên chân thẻ ca soi (`src/endolog/static/js/app.js`, `src/endolog/static/css/app.css`):
+  - Gỡ bỏ hoàn toàn 2 dòng chữ tóm tắt lặp thông tin (`.el-phase-summary-meta`) và gỡ các nút lặp pha (`Sửa P1`, `Thủ thuật P2`, `Mở Pha 4`) vốn đã có sẵn trên 4 phân đoạn màu `P1..P4`; trên máy tính (`>= 768 px`) gộp chân thẻ còn 1 hàng ngang duy nhất gồm thanh màu `P1..P4` bên trái và cụm `[Hành động bước tiếp theo (chỉ hiện khi đang chờ)]` · `[Chi tiết]` · `[•••]` bên phải.
+  - Ở chế độ điện thoại (`<= 767 px`), ẩn hoàn toàn hàng nút phụ (`.el-action-buttons-row`) và **chỉ giữ duy nhất thanh biểu thị màu 4 giai đoạn (`P1 | P2 | P3 | P4`)** trải đều ngang thẻ để nhận diện nhanh giai đoạn ca soi ([BUG-010]).
+
 ## [0.2.1] - 2026-10-31
 
 ### Added

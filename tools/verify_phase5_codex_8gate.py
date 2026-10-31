@@ -604,7 +604,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                                 };
                                 return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
                             }
-                            const selectors = ['.el-section-title', '.el-case-code', '.el-field-primary', '.el-field-secondary', '.el-status-badge', '.el-proc-chip', '#el-btn-new-case', '.el-phase-pill', '.el-phase-summary-detail'];
+                            const selectors = ['.el-section-title', '.el-case-code', '.el-field-primary', '.el-field-secondary', '.el-status-badge', '.el-proc-chip', '#el-btn-new-case', '.el-phase-pill'];
                             let checked = 0;
                             const bad = [];
                             for (const sel of selectors) {
@@ -649,16 +649,38 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
 
                 initial_card_count = page.locator("#el-case-list .el-case-card").count()
 
-                # 3.0. Verify SurgiLog-style 4-phase progression cluster (P1|P2|P3|P4), Chi tiết modal & ••• menu on every card
+                # 3.0. Verify SurgiLog-style 4-phase progression cluster (P1|P2|P3|P4), zero redundant text, mobile color-bar-only & Chi tiết modal
                 prog_audit = page.evaluate(
                     """() => {
                         const cards = Array.from(document.querySelectorAll('#el-case-list .el-case-card'));
                         const badCards = cards.filter(c => c.querySelectorAll('.el-phase-pill').length !== 4).length;
-                        return { totalCards: cards.length, badCards };
+                        const redundantMeta = document.querySelectorAll('.el-phase-summary-meta').length;
+                        const dupEditP1Btns = document.querySelectorAll('.el-action-buttons-row .action-btn-p1').length;
+                        return { totalCards: cards.length, badCards, redundantMeta, dupEditP1Btns };
                     }"""
                 )
-                if prog_audit["totalCards"] < 5 or prog_audit["badCards"] != 0:
-                    g3_errs.append(f"Thẻ ca soi thiếu cụm 4 pha P1..P4 chuẩn SurgiLog: {prog_audit}")
+                if prog_audit["totalCards"] < 5 or prog_audit["badCards"] != 0 or prog_audit["redundantMeta"] != 0 or prog_audit["dupEditP1Btns"] != 0:
+                    g3_errs.append(f"Thẻ ca soi sai cấu trúc tinh gọn 4 pha P1..P4 hoặc còn lặp văn bản/nút P1: {prog_audit}")
+
+                # Verify mobile (390px) shows ONLY the 4-segment color bar (.el-action-buttons-row hidden)
+                page.set_viewport_size({"width": 390, "height": 844})
+                page.wait_for_timeout(60)
+                mobile_prog_check = page.evaluate(
+                    """() => {
+                        const card = document.querySelector('#el-case-list .el-case-card');
+                        const row = card ? card.querySelector('.el-action-buttons-row') : null;
+                        const bar = card ? card.querySelector('.el-phase-pill-cluster') : null;
+                        return {
+                            actionRowDisplay: row ? getComputedStyle(row).display : 'missing',
+                            pillBarDisplay: bar ? getComputedStyle(bar).display : 'missing',
+                            pillCount: bar ? bar.querySelectorAll('.el-phase-pill').length : 0,
+                        };
+                    }"""
+                )
+                if mobile_prog_check["actionRowDisplay"] != "none" or mobile_prog_check["pillBarDisplay"] == "none" or mobile_prog_check["pillCount"] != 4:
+                    g3_errs.append(f"Chế độ mobile 390px chưa ẩn hàng nút phụ để chỉ giữ thanh biểu thị màu 4 pha: {mobile_prog_check}")
+                page.set_viewport_size({"width": 1440, "height": 960})
+                page.wait_for_timeout(60)
 
                 # Open 4-phase Detail Modal via 'Chi tiết', verify 0 raw UPPER_SNAKE_CASE & Escape close
                 page.locator("#el-case-list .el-case-card").first.locator(".action-btn-detail").click()
@@ -833,10 +855,10 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
                 page.locator("#el-case-drawer-backdrop").wait_for(state="hidden", timeout=5000)
 
                 # Verify OCC 409 conflict banner when concurrent update increments version behind open drawer
-                page.locator("#el-case-list .action-btn-p2").first.click()
+                page.locator('#el-case-list .el-phase-pill[data-phase-pill="p2"]').first.click()
                 page.locator("#el-case-drawer").wait_for(state="visible", timeout=3000)
                 editing_cid = page.evaluate(
-                    "() => document.querySelector('#el-case-list .action-btn-p2').getAttribute('data-case-edit')"
+                    """() => document.querySelector('#el-case-list .el-phase-pill[data-phase-pill="p2"]').getAttribute('data-case-edit')"""
                 )
                 concurrent_status = page.evaluate(
                     """async (cid) => {
@@ -1039,7 +1061,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     measured_evidence = {
         "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.1",
+        "version": "0.2.2",
         "overall_status": overall_status,
         "ergonomic_click_budget_proxy": gates["GATE_3_ERGONOMICS_AND_4PHASE_WORKFLOWS"]["metrics"],
         "viewport_and_mobile_budget": gates["GATE_4_MULTIVIEWPORT_AND_MOBILE_BUDGET"]["metrics"],
@@ -1056,7 +1078,7 @@ def run_codex_8gate(capture_drawer_screenshots: bool = True) -> int:
     test_report = {
         "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
         "generated_at_utc": now_iso,
-        "version": "0.2.1",
+        "version": "0.2.2",
         "overall_status": overall_status,
         "gates_passed": sum(1 for g in gates.values() if g["status"] == "PASS"),
         "gates_total": len(gates),

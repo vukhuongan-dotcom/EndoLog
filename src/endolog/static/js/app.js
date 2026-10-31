@@ -813,24 +813,20 @@
     let contextualPrimaryBtnHtml = '';
     if (contextView === 'surveillance') {
       if (isPendingGpb) {
-        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB P4</button>';
+        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB</button>';
       } else if (canCreateLinked) {
         contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-link-surv" data-create-linked="' + cid + '">Tạo ca soi lại</button>';
       } else if (isPending30d) {
-        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi P3</button>';
-      } else {
-        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p4">Mở Pha 4</button>';
+        contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi 30 ngày</button>';
       }
     } else if (isP2Pending) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p2">Thủ thuật P2</button>';
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p2">Hoàn tất thủ thuật</button>';
     } else if (isPendingGpb) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB P4</button>';
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p4" data-case-edit="' + cid + '" data-target-phase="p4">Nhập GPB</button>';
     } else if (isPending30d) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi P3</button>';
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-p3" data-case-edit="' + cid + '" data-target-phase="p3">Theo dõi 30 ngày</button>';
     } else if (canCreateLinked) {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-link-surv" data-create-linked="' + cid + '">Soi lại P4</button>';
-    } else {
-      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact action-btn-p2" data-case-edit="' + cid + '" data-target-phase="p2">Thủ thuật P2</button>';
+      contextualPrimaryBtnHtml = '<button type="button" class="el-btn el-btn--compact el-btn--primary action-btn-link-surv" data-create-linked="' + cid + '">Tạo ca soi lại</button>';
     }
 
     const allowLinkInMenu = Boolean(!surv.fulfilled_by_case_id && !isPendingGpb && surv.category !== 'SURGICAL_MDT_CONSULT_ALERT');
@@ -859,18 +855,11 @@
 
     return (
       '<div class="el-card-progression-bar">' +
-      '<div class="el-phase-summary-meta">' +
-      '<p class="el-phase-summary-kicker"><span>Diễn tiến theo dõi 4 pha</span><span class="el-phase-summary-count">· ' + escapeHtml(prog.nextStepLabel) + '</span></p>' +
-      '<p class="el-phase-summary-detail">' + escapeHtml(prog.summaryLine) + '</p>' +
-      '</div>' +
-      '<div class="el-action-cluster">' +
+      renderPhasePillTrackHtml(c.case_id, prog) +
       '<div class="el-action-buttons-row">' +
-      '<button type="button" class="el-btn el-btn--compact action-btn-p1" data-case-edit="' + cid + '" data-target-phase="p1">Sửa P1</button>' +
       contextualPrimaryBtnHtml +
       '<button type="button" class="el-btn el-btn--compact action-btn-detail" data-case-detail="' + cid + '">Chi tiết</button>' +
       overflowMenuHtml +
-      '</div>' +
-      renderPhasePillTrackHtml(c.case_id, prog) +
       '</div>' +
       '</div>'
     );

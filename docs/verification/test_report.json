@@ -1,7 +1,7 @@
 {
   "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
-  "generated_at_utc": "2026-10-31T10:26:16+00:00",
-  "version": "0.2.1",
+  "generated_at_utc": "2026-10-31T10:37:06+00:00",
+  "version": "0.2.2",
   "overall_status": "PASS",
   "gates_passed": 8,
   "gates_total": 8,
@@ -14,7 +14,7 @@
       "metrics": {
         "exit_code": 0,
         "passed_tests": 25,
-        "duration_sec": 3.79
+        "duration_sec": 3.42
       }
     },
     "GATE_1_SYNTAX_BRAND_AND_ENUM_LOCK": {
@@ -49,7 +49,7 @@
       "error_count": 0,
       "errors": [],
       "metrics": {
-        "interactive_elements_verified": 832,
+        "interactive_elements_verified": 779,
         "sub_44px_violations": 0
       }
     },
@@ -60,7 +60,7 @@
       "errors": [],
       "metrics": {
         "design_token_pairs_passed": 62,
-        "live_dom_elements_checked": 320
+        "live_dom_elements_checked": 300
       }
     },
     "GATE_3_ERGONOMICS_AND_4PHASE_WORKFLOWS": {

@@ -1,7 +1,7 @@
 {
   "schema": "EndoLog-Phase5-Measured-Evidence-v1.0",
-  "generated_at_utc": "2026-10-31T10:26:16+00:00",
-  "version": "0.2.1",
+  "generated_at_utc": "2026-10-31T10:37:06+00:00",
+  "version": "0.2.2",
   "overall_status": "PASS",
   "ergonomic_click_budget_proxy": {
     "clicks_negative_col": 3,
@@ -22,12 +22,12 @@
     }
   },
   "touch_target_audit": {
-    "interactive_elements_verified": 832,
+    "interactive_elements_verified": 779,
     "sub_44px_violations": 0
   },
   "wcag_contrast_audit": {
     "design_token_pairs_passed": 62,
-    "live_dom_elements_checked": 320
+    "live_dom_elements_checked": 300
   },
   "zero_phi_5_layer_audit": {
     "localStorage_keys": [

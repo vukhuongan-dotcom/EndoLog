@@ -1,9 +1,9 @@
 # EndoLog — Gastrointestinal Endoscopy Registry & Quality Platform
 ## Dự Án: Hệ Thống Sổ Bộ Lâm Sàng & Đánh Giá Chất Lượng Nội Soi Tiêu Hóa
 ### Đơn vị công tác: Khoa Nội soi Tiêu hóa — Bệnh viện Bình Dân
-### Nguồn tham chiếu: [version.md](version.md) (SSoT Phiên bản `0.2.1`) • [AGENTS.md](AGENTS.md) (Quy chuẩn dự án) • [BUG_FIX_REGISTRY.md](docs/BUG_FIX_REGISTRY.md) (Sổ lỗi & Tính năng) • [BRAND.md](docs/brand/BRAND.md) (Nhận diện `v1 · Chàm khói`)
+### Nguồn tham chiếu: [version.md](version.md) (SSoT Phiên bản `0.2.2`) • [AGENTS.md](AGENTS.md) (Quy chuẩn dự án) • [BUG_FIX_REGISTRY.md](docs/BUG_FIX_REGISTRY.md) (Sổ lỗi & Tính năng) • [BRAND.md](docs/brand/BRAND.md) (Nhận diện `v1 · Chàm khói`)
 
-**Phiên bản hiện tại:** `0.2.1` — Hoàn tất phát triển & kiểm chứng kỹ thuật **Gate B (Phase 1 → Phase 5 + Cụm diễn tiến 4 pha chuẩn SurgiLog)** trên dữ liệu giả lập cục bộ; **dừng tại biên giới Gate C** chờ nghiệm thu thực nghiệm lâm sàng — **ZERO-PHI & ZERO-IMAGE DESIGN**  
+**Phiên bản hiện tại:** `0.2.2` — Hoàn tất phát triển & kiểm chứng kỹ thuật **Gate B (Phase 1 → Phase 5 + Cụm diễn tiến 4 pha chuẩn SurgiLog)** trên dữ liệu giả lập cục bộ; **dừng tại biên giới Gate C** chờ nghiệm thu thực nghiệm lâm sàng — **ZERO-PHI & ZERO-IMAGE DESIGN**  
 **Superadmin & Quản trị kỹ thuật:** **BSCKII. Vũ Khương An — Bệnh viện Bình Dân**  
 **Người dùng chính (`Primary Endoscopist`):** **ThS. BSCKI. Nguyễn Bình An — Khoa Nội soi Tiêu hóa, Bệnh viện Bình Dân**
 
@@ -15,13 +15,13 @@
 
 ---
 
-## 1. Cấu Trúc Thư Mục Dự Án (`v0.2.1` — Profile `webapp` ISO 15489-1:2016)
+## 1. Cấu Trúc Thư Mục Dự Án (`v0.2.2` — Profile `webapp` ISO 15489-1:2016)
 
 ```text
 endolog/
 ├── AGENTS.md                                      # Quy chuẩn kỹ thuật, môi trường fail-closed & bảo mật cục bộ (CLS-03)
 ├── README.md                                      # Tổng quan dự án, cấu trúc & hướng dẫn kiểm chứng (CLS-02)
-├── pyproject.toml                                 # Khai báo gói Python endolog v0.2.1
+├── pyproject.toml                                 # Khai báo gói Python endolog v0.2.2
 ├── version.md                                     # Lịch sử phiên bản SemVer 2.0.0 (CLS-07)
 ├── .gitignore                                     # Chốt chặn bảo vệ dữ liệu lâm sàng & khóa bí mật
 ├── PROJECT_CONTEXT/                               # Bộ não tri thức dự án (SSoT Brain — CLS-02/07)

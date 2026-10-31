@@ -14,6 +14,11 @@ Các nhóm phân loại hợp lệ: `Added`, `Changed`, `Deprecated`, `Removed`,
   - **Tách bạch gộp người bệnh với đối soát đợt nội trú (`G05`):** bổ sung `GET /api/admin/patients`, `POST /api/admin/patients/merge` (bảo toàn 100% ranh giới `episode_id` và chỉ số phiên `ERCP`, lưu vết `MERGED_SUPERSEDED` chuẩn Zero-RM, chặn ghi mới vào định danh cũ `409 PATIENT_MERGED_SUPERSEDED`, ánh xạ `secondary_mrn_hashes`) và `POST /api/admin/episodes/reconcile` (chỉ áp dụng cho `INPATIENT`, tính lại tất định thứ tự phiên `ERCP`, tăng `profile_b_lineage_seq` trên `Hồ sơ B`).
   - **Giao diện quản trị Superadmin (`#el-superadmin-panel`) & phân quyền cấu hình cấp khoa:** phân tách cấu hình cá nhân (`colo_guideline_mode`, `adr_min_age`) với cấu hình thống kê cấp khoa (`kpi_min_sample_size`, `cusum_preset` chỉ `superadmin` chỉnh sửa), 4 thẻ quản trị tiếng Việt tự nhiên (`0` mã `UPPER_SNAKE_CASE`, `100%` biến màu `tokens.css`, vùng chạm `>= 44×44 px`) và bộ kiểm thử `tests/test_superadmin_governance.py` ([FEAT-010]).
 
+### Fixed
+- Khắc phục 2 phát hiện crosscheck của **Phase 4C (`v0.3.0`)**:
+  - **`C01` ([BUG-011]):** định nghĩa tường minh ranh giới commit nguyên tử tại đúng lệnh `os.replace` thay tệp kho chính `endolog_state.json`, tách biệt tuyệt đối lỗi trước điểm commit (`HTTP 500`, `committed=false`, bảo toàn kho & phiên hiện hành) khỏi lỗi vệ sinh hậu commit (`state_dir_fsync`, `wal_archive`, `hourly_snapshot` trả `HTTP 200`, `committed=true`, `commit_status="COMMITTED_WITH_POST_COMMIT_WARNING"` kèm xoay/thu hồi cookie phiên chuẩn xác và phục hồi an toàn khi mở lại kho).
+  - **`C02` ([BUG-012]):** đóng gói các tệp bằng chứng lịch sử `pre_restore_*.json` nén `zlib+base64` có trần dung lượng vào bên trong phong bì mã hóa Hồ sơ A (`audit_lineage_artifacts`), giải nén vào `backup_dir` máy đích một cách nguyên tử khi khôi phục, và đối chiếu song ánh hai chiều giữa các sự kiện `RESTORE_PROFILE_A_ENCRYPTED` trong chuỗi băm `audit_chain` (cả chuỗi gốc lẫn các ảnh chụp lịch sử) với danh sách cầu nối `audit_lineage_bridges`.
+
 ## [0.2.3] - 2026-10-31
 
 ### Changed

@@ -14,10 +14,12 @@ from typing import Any
 from endolog.clinical.adverse_events import summarize_case_adverse_events
 from endolog.clinical.bbps import evaluate_bbps, extract_bbps_segments
 from endolog.clinical.export_profiles import (
+    MAX_LINEAGE_BRIDGES,
     MAX_VAULT_BLOB_BYTES,
     VaultPayloadTooLargeError,
     VaultSchemaValidationError,
     decrypt_profile_a_vault,
+    extract_and_validate_lineage_artifacts,
     validate_restored_vault_domain,
 )
 from endolog.clinical.quality_metrics import (
@@ -25,10 +27,14 @@ from endolog.clinical.quality_metrics import (
     is_difficult_cannulation_esge_2016,
 )
 from endolog.clinical.surveillance_scheduler import build_surveillance_recommendation
-from endolog.core.audit import build_audit_entry, verify_audit_chain
+from endolog.core.audit import build_audit_entry, verify_audit_chain, verify_audit_lineage_bridges
 from endolog.core.config import EndoLogSettings
 from endolog.core.dlp import scan_payload_notes
-from endolog.core.persistence import AtomicJsonStore, normalize_state_compat
+from endolog.core.persistence import (
+    AtomicJsonStore,
+    LineageArtifactCollisionError,
+    normalize_state_compat,
+)
 from endolog.core.security import hash_password, verify_password
 from endolog.schemas.clinical import (
     AdminPasswordResetRequest,
@@ -1242,14 +1248,17 @@ class EndoLogService:
         vault_blob = self.extract_vault_blob_from_request(req)
         vault_blob_sha256 = hashlib.sha256(vault_blob).hexdigest()
 
-        # Layer 1 (Pre-KDF) + Layer 2 (AES-GCM Decrypt + Domain Referential Validator)
+        # Layer 1 (Pre-KDF) + Layer 2 (AES-GCM Decrypt + Domain Referential Validator + Portable Lineage Artifacts)
         decrypted = decrypt_profile_a_vault(vault_blob, req.passphrase)
+        verified_lineage_files = extract_and_validate_lineage_artifacts(decrypted)
         validated = validate_restored_vault_domain(
             decrypted,
             preserve_current_users=req.preserve_current_users,
         )
+        validated_without_blobs = copy.deepcopy(validated)
+        validated_without_blobs.pop("audit_lineage_artifacts", None)
         vault_norm = normalize_state_compat(
-            validated,
+            validated_without_blobs,
             default_kpi_min_sample_size=self.settings.kpi_min_sample_size,
         )
 
@@ -1269,6 +1278,16 @@ class EndoLogService:
                 raise DomainConflictError(
                     "LIVE_AUDIT_CHAIN_BROKEN",
                     "Chuỗi kiểm toán hiện hành không toàn vẹn; dừng khôi phục để bảo toàn bằng chứng kiểm tra.",
+                )
+            live_lineage_ver = verify_audit_lineage_bridges(
+                live_state.get("audit_lineage_bridges", []),
+                backup_dir=self.settings.backup_dir,
+                audit_chain=live_state.get("audit_chain", []),
+            )
+            if not live_lineage_ver.get("valid"):
+                raise DomainConflictError(
+                    "LIVE_AUDIT_LINEAGE_BROKEN",
+                    "Chuỗi cầu nối kế thừa kiểm toán hiện hành không toàn vẹn; dừng khôi phục để bảo toàn bằng chứng kiểm tra.",
                 )
             backup_audit_ver = verify_audit_chain(vault_norm["audit_chain"])
 
@@ -1389,16 +1408,35 @@ class EndoLogService:
             candidate["crypto_context"] = self.settings.build_crypto_context(new_dataset_epoch)
 
             merged_bridges: list[dict[str, Any]] = []
-            seen_bridge_shas: set[str] = set()
+            seen_bridge_keys: set[tuple[str, str, str, str]] = set()
+            seen_sha_by_fname: dict[str, str] = {}
             for br in list(candidate.get("audit_lineage_bridges") or []) + list(
                 live_state.get("audit_lineage_bridges") or []
             ):
-                b_sha = str(br.get("pre_restore_sha256") or "")
-                if b_sha and b_sha in seen_bridge_shas:
+                b_fname = str(br.get("pre_restore_filename") or "")
+                b_sha = str(br.get("pre_restore_sha256") or "").lower()
+                if b_fname and b_fname in seen_sha_by_fname and seen_sha_by_fname[b_fname] != b_sha:
+                    raise DomainConflictError(
+                        "LINEAGE_ARTIFACT_COLLISION",
+                        f"Phát hiện xung đột mã băm SHA-256 trên tệp bằng chứng lịch sử '{b_fname}' giữa bản sao lưu và máy đích.",
+                    )
+                bridge_key = (
+                    b_fname,
+                    b_sha,
+                    str(br.get("restored_at_utc") or ""),
+                    str(br.get("vault_blob_sha256") or "").lower(),
+                )
+                if b_fname and b_sha and bridge_key in seen_bridge_keys:
                     continue
-                if b_sha:
-                    seen_bridge_shas.add(b_sha)
+                if b_fname and b_sha:
+                    seen_sha_by_fname[b_fname] = b_sha
+                    seen_bridge_keys.add(bridge_key)
                 merged_bridges.append(copy.deepcopy(br))
+            if len(merged_bridges) + 1 > MAX_LINEAGE_BRIDGES:
+                raise DomainConflictError(
+                    "LINEAGE_BRIDGE_LIMIT_EXCEEDED",
+                    f"Tổng số cầu nối lịch sử khôi phục sau hợp nhất ({len(merged_bridges) + 1}) vượt ngưỡng tối đa {MAX_LINEAGE_BRIDGES}.",
+                )
             candidate["audit_lineage_bridges"] = merged_bridges
 
             def _finalize(
@@ -1439,6 +1477,7 @@ class EndoLogService:
                             "displaced_live_seq": len(live_state["audit_chain"]),
                             "pre_restore_filename": pre_restore_filename,
                             "pre_restore_sha256": pre_restore_sha256,
+                            "imported_lineage_artifact_count": len(verified_lineage_files),
                             "new_store_epoch": new_store_epoch,
                             "export_dataset_epoch": new_dataset_epoch,
                             "preserve_current_users": bool(req.preserve_current_users),
@@ -1448,23 +1487,35 @@ class EndoLogService:
                     )
                 )
                 actor_after = cand["users"].get(actor_username)
+                can_keep_session = bool(
+                    req.preserve_current_users
+                    and isinstance(actor_after, dict)
+                    and bool(actor_after.get("active", True))
+                )
                 return {
                     "restored": True,
                     "new_store_epoch": new_store_epoch,
                     "export_dataset_epoch": new_dataset_epoch,
                     "preserve_current_users": bool(req.preserve_current_users),
-                    "reauthentication_required": not bool(req.preserve_current_users),
+                    "reauthentication_required": not can_keep_session,
                     "pre_restore_filename": pre_restore_filename,
                     "pre_restore_sha256": pre_restore_sha256,
+                    "imported_lineage_artifact_count": len(verified_lineage_files),
                     "restored_case_count": sum(
                         1 for c in cand["cases"].values() if c.get("record_status", "ACTIVE") == "ACTIVE"
                     ),
-                    "actor_user": _sanitize_user(actor_after) if (req.preserve_current_users and actor_after) else None,
+                    "actor_user": _sanitize_user(actor_after) if can_keep_session and actor_after else None,
                 }
 
             return candidate, _finalize
 
-        return self.store.restore_vault_atomic(_prepare_restore)
+        try:
+            return self.store.restore_vault_atomic(
+                _prepare_restore,
+                imported_lineage_files=verified_lineage_files,
+            )
+        except LineageArtifactCollisionError as exc:
+            raise DomainConflictError(exc.code, exc.message) from exc
 
     # -------------------------------------------------------------------------
     # Case Enrichment & Presentation Projection

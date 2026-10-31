@@ -449,3 +449,35 @@ class StoredSurveillanceRecord(BaseModel):
     reason: str
     status: str
     fulfilled_by_case_id: str | None = None
+
+
+class StoredAuditLineageBridge(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    restored_at_utc: str = Field(..., min_length=10, max_length=64)
+    actor_username: str = Field(..., min_length=2, max_length=64)
+    vault_blob_sha256: str = Field(..., pattern=r"^[0-9a-fA-F]{64}$")
+    backup_pre_append_head_hash: str = Field(..., pattern=r"^[0-9a-fA-F]{64}$")
+    backup_pre_append_seq: int = Field(..., ge=1)
+    displaced_live_head_hash: str = Field(..., pattern=r"^[0-9a-fA-F]{64}$")
+    displaced_live_seq: int = Field(..., ge=1)
+    pre_restore_filename: str = Field(
+        ...,
+        min_length=17,
+        max_length=128,
+        pattern=r"^pre_restore_[A-Za-z0-9_]+\.json$",
+    )
+    pre_restore_sha256: str = Field(..., pattern=r"^[0-9a-fA-F]{64}$")
+    previous_store_epoch: int = Field(..., ge=1)
+    new_store_epoch: int = Field(..., ge=2)
+    preserve_current_users: bool
+    key_mismatch_policy: Literal["REJECT", "REKEY_AND_BUMP_DATASET_EPOCH"]
+
+
+class StoredLineageArtifactEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    encoding: Literal["zlib+base64"]
+    raw_size_bytes: int = Field(..., ge=2, le=10_485_760)
+    sha256: str = Field(..., pattern=r"^[0-9a-fA-F]{64}$")
+    data_b64: str = Field(..., min_length=4, max_length=16_777_216)

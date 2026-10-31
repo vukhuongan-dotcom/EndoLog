@@ -42,7 +42,7 @@ endolog/
 │   └── static/                                    # PWA tự host (tokens.css, app.css, app.js, index.html, sw.js)
 ├── scripts/check_ssot.py                          # Công cụ kiểm chứng đồng bộ phiên bản & cặp Sổ lỗi Dual SSoT
 ├── tools/                                         # Công cụ kiểm toán tương phản WCAG, Phase 4A & Codex 8-Gate Phase 5
-├── tests/                                         # Bộ kiểm thử tự động pytest (32 ca kiểm thử cô lập sandbox)
+├── tests/                                         # Bộ kiểm thử tự động pytest (34 ca kiểm thử cô lập sandbox)
 ├── data/                                          # [Git-Ignored] Lưu trữ AtomicJsonStore cục bộ (CLS-04)
 └── data_backups/                                  # [Git-Ignored] Bản chụp sao lưu tự động (CLS-04)
 ```

@@ -1,6 +1,6 @@
 {
   "schema": "EndoLog-Phase5-Codex-8Gate-Report-v1.0",
-  "generated_at_utc": "2026-10-31T13:31:04+00:00",
+  "generated_at_utc": "2026-10-31T15:20:38+00:00",
   "version": "0.3.0",
   "overall_status": "PASS",
   "gates_passed": 8,
@@ -13,8 +13,8 @@
       "errors": [],
       "metrics": {
         "exit_code": 0,
-        "passed_tests": 32,
-        "duration_sec": 6.81
+        "passed_tests": 34,
+        "duration_sec": 9.32
       }
     },
     "GATE_1_SYNTAX_BRAND_AND_ENUM_LOCK": {

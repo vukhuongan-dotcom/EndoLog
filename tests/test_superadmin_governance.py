@@ -1118,3 +1118,576 @@ def test_tc_adversarial_p1_regressions_delete_occ_cycles_and_mrn_hashes(tmp_path
     assert r_del_ok.status_code == 200
     assert r_del_ok.json()["record_status"] == "SUPERSEDED"
 
+
+def test_tc_c01_restore_commit_boundary_fault_injection_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """C01 (P1) regression suite: strict separation of pre-commit abort vs post-commit housekeeping warnings, session state, and store reopen recovery."""
+    import shutil as _shutil
+
+    from endolog.core.audit import verify_audit_chain, verify_audit_lineage_bridges
+    from endolog.core.persistence import AtomicJsonStore
+
+    cfg, app = _build_test_app(tmp_path / "c01_store", auto_seed=False)
+    admin = _client(app)
+    endo = _client(app)
+    assert admin.post("/api/auth/login", json={"username": "vukhuongan", "password": DEV_SUPERADMIN_PWD}).status_code == 200
+    assert endo.post("/api/auth/login", json={"username": "nguyenbinhan", "password": DEV_ENDOSCOPIST_PWD}).status_code == 200
+
+    # Create a baseline case at e1:v1 ("Ghi chú trong bản sao lưu gốc e1:v1"), export backup, then mutate live to e1:v2
+    r_create = endo.post(
+        "/api/cases",
+        json={
+            "full_name": "Lý Minh Khôi",
+            "birth_year": 1969,
+            "sex": "M",
+            "hospital_mrn": "HS26-88001",
+            "care_setting": "INPATIENT",
+            "track": "EGD",
+            "procedure_start_at": "2026-10-20T08:00:00+07:00",
+            "indication": "DIAGNOSTIC",
+            "clinical_note": "Ghi chú trong bản sao lưu gốc e1:v1",
+        },
+    )
+    assert r_create.status_code == 201
+    cid = r_create.json()["case_id"]
+
+    vault_backup_text = admin.post("/api/exports/profile-a", json={"passphrase": VAULT_PASSPHRASE}).text
+
+    r_live_mut = endo.patch(
+        f"/api/cases/{cid}",
+        headers={"If-Match": 'W/"e1:v1"'},
+        json={"expected_version": 1, "expected_store_epoch": 1, "clinical_note": "Ghi chú hiện hành trước khôi phục e1:v2"},
+    )
+    assert r_live_mut.status_code == 200
+
+    state_file = cfg.data_dir / "endolog_state.json"
+    wal_file = cfg.data_dir / "endolog_state.rollback.wal.json"
+
+    def _verify_reopened_store(expected_epoch: int, expected_note: str, expected_bridges: int) -> None:
+        reopened = AtomicJsonStore(
+            cfg.data_dir,
+            cfg.backup_dir,
+            bootstrap_passwords={"vukhuongan": DEV_SUPERADMIN_PWD, "nguyenbinhan": DEV_ENDOSCOPIST_PWD},
+            default_kpi_min_sample_size=cfg.kpi_min_sample_size,
+        )
+        assert not wal_file.exists(), "Reopened store must quarantine any lingering rollback WAL"
+        snap = reopened.read_snapshot()
+        assert snap["store_epoch"] == expected_epoch
+        assert snap["cases"][cid]["clinical_note"] == expected_note
+        assert verify_audit_chain(snap["audit_chain"])["valid"] is True
+        lin = verify_audit_lineage_bridges(
+            snap.get("audit_lineage_bridges", []),
+            backup_dir=cfg.backup_dir,
+            audit_chain=snap["audit_chain"],
+        )
+        assert lin["valid"] is True
+        assert lin["audit_chain_consistency_valid"] is True
+        assert lin["bridge_count"] == expected_bridges
+
+    # -------------------------------------------------------------------------
+    # Stage 1 (Pre-commit): Fault during pre_restore_*.json creation
+    # -------------------------------------------------------------------------
+    real_open = os.open
+
+    def _fail_pre_restore(path: Any, flags: int, *args: Any, **kwargs: Any) -> int:
+        if "pre_restore_" in Path(str(path)).name:
+            raise OSError("Injected pre_restore open failure")
+        return real_open(path, flags, *args, **kwargs)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "open", _fail_pre_restore)
+        r_f1 = admin.post(
+            "/api/admin/restore-profile-a",
+            json={"vault_text": vault_backup_text, "passphrase": VAULT_PASSPHRASE, "expected_store_epoch": 1},
+        )
+    assert r_f1.status_code == 500
+    assert r_f1.json()["detail"]["code"] == "PRE_RESTORE_BACKUP_IO_ERROR"
+    assert r_f1.json()["detail"]["stage"] == "pre_restore_backup"
+    assert r_f1.json()["detail"]["committed"] is False
+    assert json.loads(state_file.read_text(encoding="utf-8"))["store_epoch"] == 1
+    assert admin.get("/api/auth/me").status_code == 200
+    assert endo.get("/api/auth/me").status_code == 200
+    _verify_reopened_store(expected_epoch=1, expected_note="Ghi chú hiện hành trước khôi phục e1:v2", expected_bridges=0)
+
+    # -------------------------------------------------------------------------
+    # Stage 2a (Pre-commit): Fault during WAL rollback journal write
+    # -------------------------------------------------------------------------
+    real_replace = os.replace
+
+    def _fail_wal_write(src: Any, dst: Any, *args: Any, **kwargs: Any) -> None:
+        if Path(str(dst)).name == "endolog_state.rollback.wal.json":
+            raise OSError("Injected WAL journal replace failure")
+        real_replace(src, dst, *args, **kwargs)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "replace", _fail_wal_write)
+        r_f2a = admin.post(
+            "/api/admin/restore-profile-a",
+            json={"vault_text": vault_backup_text, "passphrase": VAULT_PASSPHRASE, "expected_store_epoch": 1},
+        )
+    assert r_f2a.status_code == 500
+    assert r_f2a.json()["detail"]["code"] == "RESTORE_STATE_WRITE_ABORTED"
+    assert r_f2a.json()["detail"]["stage"] == "wal_journal_write"
+    assert r_f2a.json()["detail"]["committed"] is False
+    assert list(cfg.backup_dir.glob("pre_restore_*.json")) == []
+    assert admin.get("/api/auth/me").status_code == 200
+    assert endo.get("/api/auth/me").status_code == 200
+    _verify_reopened_store(expected_epoch=1, expected_note="Ghi chú hiện hành trước khôi phục e1:v2", expected_bridges=0)
+
+    # -------------------------------------------------------------------------
+    # Stage 2b (Pre-commit): Fault during state_path os.replace (even if WAL cleanup move also fails!)
+    # -------------------------------------------------------------------------
+    real_move = _shutil.move
+
+    def _fail_state_replace(src: Any, dst: Any, *args: Any, **kwargs: Any) -> None:
+        if Path(str(dst)).name == "endolog_state.json":
+            raise OSError("Injected endolog_state.json replace failure before commit")
+        real_replace(src, dst, *args, **kwargs)
+
+    def _fail_aborted_wal_move(src: Any, dst: Any, *args: Any, **kwargs: Any) -> Any:
+        if Path(str(src)).name == "endolog_state.rollback.wal.json":
+            raise OSError("Simulated lingering WAL after state write abort")
+        return real_move(src, dst, *args, **kwargs)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "replace", _fail_state_replace)
+        mp.setattr(_shutil, "move", _fail_aborted_wal_move)
+        r_f2b = admin.post(
+            "/api/admin/restore-profile-a",
+            json={"vault_text": vault_backup_text, "passphrase": VAULT_PASSPHRASE, "expected_store_epoch": 1},
+        )
+    assert r_f2b.status_code == 500
+    assert r_f2b.json()["detail"]["code"] == "RESTORE_STATE_WRITE_ABORTED"
+    assert r_f2b.json()["detail"]["stage"] == "state_commit_write"
+    assert r_f2b.json()["detail"]["committed"] is False
+    assert wal_file.exists() is True  # Left behind intentionally by _fail_aborted_wal_move
+    assert json.loads(state_file.read_text(encoding="utf-8"))["store_epoch"] == 1
+    assert admin.get("/api/auth/me").status_code == 200
+    assert endo.get("/api/auth/me").status_code == 200
+    # Reopen store -> must recover cleanly, quarantine wal_file, and preserve e1!
+    _verify_reopened_store(expected_epoch=1, expected_note="Ghi chú hiện hành trước khôi phục e1:v2", expected_bridges=0)
+
+    # -------------------------------------------------------------------------
+    # Stage 3 (Post-commit): Fault archiving WAL -> latest_committed_rollback.json AFTER state committed
+    # -------------------------------------------------------------------------
+    def _fail_wal_archive(src: Any, dst: Any, *args: Any, **kwargs: Any) -> None:
+        if str(dst).endswith("latest_committed_rollback.json"):
+            raise OSError("Injected post-commit WAL archive failure")
+        real_replace(src, dst, *args, **kwargs)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "replace", _fail_wal_archive)
+        r_f3 = admin.post(
+            "/api/admin/restore-profile-a",
+            json={
+                "vault_text": vault_backup_text,
+                "passphrase": VAULT_PASSPHRASE,
+                "expected_store_epoch": 1,
+                "preserve_current_users": True,
+            },
+        )
+    assert r_f3.status_code == 200, r_f3.text
+    f3_body = r_f3.json()
+    assert f3_body["restored"] is True
+    assert f3_body["committed"] is True
+    assert f3_body["commit_status"] == "COMMITTED_WITH_POST_COMMIT_WARNING"
+    assert f3_body["new_store_epoch"] == 2
+    assert len(f3_body["post_commit_warnings"]) == 1
+    assert f3_body["post_commit_warnings"][0]["stage"] == "wal_archive"
+    assert f3_body["post_commit_warnings"][0]["code"] == "POST_COMMIT_WAL_ARCHIVE_IO_WARNING"
+
+    # Disk state is e2; admin session cookie was rotated to e2 (200 OK), while unrotated endo e1 session gets 401
+    assert json.loads(state_file.read_text(encoding="utf-8"))["store_epoch"] == 2
+    assert wal_file.exists() is True
+    me_admin = admin.get("/api/auth/me")
+    assert me_admin.status_code == 200
+    assert me_admin.json()["store_epoch"] == 2
+    assert endo.get("/api/auth/me").status_code == 401
+    assert endo.post("/api/auth/login", json={"username": "nguyenbinhan", "password": DEV_ENDOSCOPIST_PWD}).status_code == 200
+
+    # Reopen store -> must NOT overwrite committed e2 with stale e1 WAL, and must quarantine leftover WAL!
+    _verify_reopened_store(expected_epoch=2, expected_note="Ghi chú trong bản sao lưu gốc e1:v1", expected_bridges=1)
+
+    # -------------------------------------------------------------------------
+    # Stage 4 (Post-commit): Fault during hourly snapshot (preserve_current_users=False re-login flow)
+    # -------------------------------------------------------------------------
+    for existing_snap in cfg.backup_dir.glob("snapshot_*.json"):
+        _shutil.move(str(existing_snap), str(cfg.backup_dir / f"archived_test_{existing_snap.name}"))
+
+    real_copy2 = _shutil.copy2
+
+    def _fail_snapshot_copy2(src: Any, dst: Any, *args: Any, **kwargs: Any) -> Any:
+        if "snapshot_" in Path(str(dst)).name:
+            raise OSError("Injected post-commit hourly snapshot failure")
+        return real_copy2(src, dst, *args, **kwargs)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(_shutil, "copy2", _fail_snapshot_copy2)
+        r_f4 = admin.post(
+            "/api/admin/restore-profile-a",
+            json={
+                "vault_text": vault_backup_text,
+                "passphrase": VAULT_PASSPHRASE,
+                "expected_store_epoch": 2,
+                "preserve_current_users": False,
+            },
+        )
+    assert r_f4.status_code == 200, r_f4.text
+    f4_body = r_f4.json()
+    assert f4_body["restored"] is True
+    assert f4_body["committed"] is True
+    assert f4_body["commit_status"] == "COMMITTED_WITH_POST_COMMIT_WARNING"
+    assert f4_body["reauthentication_required"] is True
+    assert f4_body["new_store_epoch"] == 3
+    assert len(f4_body["post_commit_warnings"]) == 1
+    assert f4_body["post_commit_warnings"][0]["stage"] == "hourly_snapshot"
+    assert f4_body["post_commit_warnings"][0]["code"] == "POST_COMMIT_SNAPSHOT_IO_WARNING"
+
+    # Cookie deleted on reauthentication_required -> 401, and re-login succeeds cleanly on e3
+    assert admin.get("/api/auth/me").status_code == 401
+    assert admin.post("/api/auth/login", json={"username": "vukhuongan", "password": DEV_SUPERADMIN_PWD}).status_code == 200
+    assert admin.get("/api/auth/me").json()["store_epoch"] == 3
+    _verify_reopened_store(expected_epoch=3, expected_note="Ghi chú trong bản sao lưu gốc e1:v1", expected_bridges=2)
+
+    # -------------------------------------------------------------------------
+    # Stage 5 (Post-commit R2-01): Fault in _strict_fsync_dir(data_dir) AFTER os.replace(state_path)
+    # Must NOT run _cleanup_pre_commit (pre_restore_*.json stays intact!) and must return 200 + warning!
+    # -------------------------------------------------------------------------
+    import endolog.core.persistence as _pers_mod
+
+    real_strict_fsync = _pers_mod._strict_fsync_dir
+    state_committed_in_s5 = {"done": False}
+
+    def _track_replace_s5(src: Any, dst: Any, *args: Any, **kwargs: Any) -> None:
+        real_replace(src, dst, *args, **kwargs)
+        if Path(str(dst)).name == "endolog_state.json":
+            state_committed_in_s5["done"] = True
+
+    def _fail_postcommit_data_dir_fsync(directory: Path) -> None:
+        if state_committed_in_s5["done"] and directory.resolve() == cfg.data_dir.resolve():
+            raise OSError("Injected post-commit data_dir fsync failure")
+        real_strict_fsync(directory)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "replace", _track_replace_s5)
+        mp.setattr(_pers_mod, "_strict_fsync_dir", _fail_postcommit_data_dir_fsync)
+        r_f5 = admin.post(
+            "/api/admin/restore-profile-a",
+            json={
+                "vault_text": vault_backup_text,
+                "passphrase": VAULT_PASSPHRASE,
+                "expected_store_epoch": 3,
+                "preserve_current_users": True,
+            },
+        )
+    assert r_f5.status_code == 200, r_f5.text
+    f5_body = r_f5.json()
+    assert f5_body["committed"] is True
+    assert f5_body["commit_status"] == "COMMITTED_WITH_POST_COMMIT_WARNING"
+    assert f5_body["new_store_epoch"] == 4
+    assert any(w["code"] == "POST_COMMIT_STATE_DIR_FSYNC_IO_WARNING" for w in f5_body["post_commit_warnings"])
+    assert admin.get("/api/auth/me").status_code == 200
+    assert admin.get("/api/audit/verify").json()["lineage_verification"]["valid"] is True
+    _verify_reopened_store(expected_epoch=4, expected_note="Ghi chú trong bản sao lưu gốc e1:v1", expected_bridges=3)
+
+
+def test_tc_c02_portable_audit_lineage_across_machines_rekey_and_tamper_guards(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C02 (P2) regression suite: A restore->export->B restore->export->C restore (same keys + rekey), missing/tampered lineage guards."""
+    import base64 as _b64
+    import hashlib as _hashlib
+    import shutil as _shutil
+    import zlib as _zlib
+
+    from endolog.clinical.export_profiles import decrypt_profile_a_vault
+
+    # 1. Server A: create case with MRN, export, restore (bridge_count=1), then export portable vault
+    cfg_a, app_a = _build_test_app(
+        tmp_path / "server_a",
+        auto_seed=False,
+        mrn_key="portable-mrn-key-alpha-2026-shared-ab",
+        shift_key="portable-shift-key-alpha-2026-shared-ab",
+    )
+    client_a = _client(app_a)
+    assert client_a.post("/api/auth/local-bypass", json={"target_username": "vukhuongan"}).status_code == 200
+    r_ca = client_a.post(
+        "/api/cases",
+        json={
+            "full_name": "Ngô Quốc Trung",
+            "birth_year": 1966,
+            "sex": "M",
+            "hospital_mrn": "HS26-55001",
+            "care_setting": "INPATIENT",
+            "track": "COL",
+            "procedure_start_at": "2026-10-21T08:30:00+07:00",
+            "indication": "SCREENING",
+            "bbps_right": 3,
+            "bbps_transverse": 3,
+            "bbps_left": 3,
+            "cecal_intubation": "YES",
+            "withdrawal_time_clean_min": 9.0,
+        },
+    )
+    assert r_ca.status_code == 201
+
+    vault_a0 = client_a.post("/api/exports/profile-a", json={"passphrase": VAULT_PASSPHRASE}).text
+    r_res_a = client_a.post(
+        "/api/admin/restore-profile-a",
+        json={"vault_text": vault_a0, "passphrase": VAULT_PASSPHRASE, "expected_store_epoch": 1, "preserve_current_users": True},
+    )
+    assert r_res_a.status_code == 200
+    audit_a = client_a.get("/api/audit/verify").json()
+    assert audit_a["verification"]["valid"] is True
+    assert audit_a["lineage_verification"]["valid"] is True
+    assert audit_a["lineage_verification"]["bridge_count"] == 1
+
+    # Export vault_a1 AFTER restore on Server A -> bundles pre_restore artifact inside encrypted payload
+    r_exp_a1 = client_a.post("/api/exports/profile-a", json={"passphrase": VAULT_PASSPHRASE})
+    assert r_exp_a1.status_code == 200
+    vault_a1_bytes = r_exp_a1.content
+
+    # 2. Server B (same HMAC keys, completely separate data_dir & backup_dir): restore vault_a1
+    cfg_b, app_b = _build_test_app(
+        tmp_path / "server_b",
+        auto_seed=False,
+        mrn_key="portable-mrn-key-alpha-2026-shared-ab",
+        shift_key="portable-shift-key-alpha-2026-shared-ab",
+    )
+    client_b = _client(app_b)
+    assert client_b.post("/api/auth/local-bypass", json={"target_username": "vukhuongan"}).status_code == 200
+
+    r_res_b = client_b.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": vault_a1_bytes.decode("utf-8"),
+            "passphrase": VAULT_PASSPHRASE,
+            "expected_store_epoch": 1,
+            "preserve_current_users": True,
+        },
+    )
+    assert r_res_b.status_code == 200, r_res_b.text
+    assert r_res_b.json()["imported_lineage_artifact_count"] == 1
+
+    # Live state on B must NOT bloat with audit_lineage_artifacts (materialized into B/data_backups instead)
+    raw_state_b = json.loads((cfg_b.data_dir / "endolog_state.json").read_text(encoding="utf-8"))
+    assert "audit_lineage_artifacts" not in raw_state_b
+
+    audit_b = client_b.get("/api/audit/verify").json()
+    assert audit_b["verification"]["valid"] is True
+    assert audit_b["lineage_verification"]["valid"] is True
+    assert audit_b["lineage_verification"]["bridge_count"] == 2
+    for br_item in audit_b["audit_lineage_bridges"]:
+        assert br_item["pre_restore_file_present"] is True
+        assert br_item["pre_restore_sha256_valid"] is True
+        assert br_item["displaced_audit_chain_valid"] is True
+        assert br_item["valid"] is True
+
+    # Source export guard on B: if a pre_restore_*.json is moved away, POST /api/exports/profile-a fails closed with 409
+    first_pre_b = sorted(cfg_b.backup_dir.glob("pre_restore_*.json"))[0]
+    parked_pre_b = tmp_path / f"parked_{first_pre_b.name}"
+    _shutil.move(str(first_pre_b), str(parked_pre_b))
+    r_exp_incomplete = client_b.post("/api/exports/profile-a", json={"passphrase": VAULT_PASSPHRASE})
+    assert r_exp_incomplete.status_code == 409
+    assert r_exp_incomplete.json()["detail"]["code"] == "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT"
+    _shutil.move(str(parked_pre_b), str(first_pre_b))
+
+    # Export vault_b1 from B (carrying 2 historical bridges + 2 compressed pre_restore artifacts)
+    r_exp_b1 = client_b.post("/api/exports/profile-a", json={"passphrase": VAULT_PASSPHRASE})
+    assert r_exp_b1.status_code == 200
+    vault_b1_bytes = r_exp_b1.content
+
+    # 3. Server C (DIFFERENT HMAC keys -> multi-hop restore + REKEY_AND_BUMP_DATASET_EPOCH + adversarial tamper checks)
+    _cfg_c, app_c = _build_test_app(
+        tmp_path / "server_c",
+        auto_seed=False,
+        mrn_key="different-server-c-mrn-key-2026-omega",
+        shift_key="different-server-c-shift-key-2026-omega",
+    )
+    client_c = _client(app_c)
+    assert client_c.post("/api/auth/local-bypass", json={"target_username": "vukhuongan"}).status_code == 200
+
+    plain_b1 = decrypt_profile_a_vault(vault_b1_bytes, VAULT_PASSPHRASE)
+
+    # 3a. Missing historical artifact -> 422 MISSING_LINEAGE_EVIDENCE_ARTIFACT (never silently accepted!)
+    mut_missing_art = json.loads(json.dumps(plain_b1))
+    dropped_fname = next(iter(mut_missing_art["audit_lineage_artifacts"]))
+    del mut_missing_art["audit_lineage_artifacts"][dropped_fname]
+    r_missing = client_c.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": _reencrypt_vault_plaintext(mut_missing_art, VAULT_PASSPHRASE),
+            "passphrase": VAULT_PASSPHRASE,
+            "key_mismatch_policy": "REKEY_AND_BUMP_DATASET_EPOCH",
+        },
+    )
+    assert r_missing.status_code == 422
+    assert r_missing.json()["detail"]["code"] == "MISSING_LINEAGE_EVIDENCE_ARTIFACT"
+
+    # 3b. Tampered historical artifact SHA-256 -> 422 TAMPERED_LINEAGE_EVIDENCE_ARTIFACT
+    mut_tampered_art = json.loads(json.dumps(plain_b1))
+    tampered_bytes = b'{"schema_version": "1.1.0", "audit_chain": []}'
+    mut_tampered_art["audit_lineage_artifacts"][dropped_fname]["data_b64"] = _b64.b64encode(
+        _zlib.compress(tampered_bytes, level=9)
+    ).decode("ascii")
+    mut_tampered_art["audit_lineage_artifacts"][dropped_fname]["raw_size_bytes"] = len(tampered_bytes)
+    r_tampered = client_c.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": _reencrypt_vault_plaintext(mut_tampered_art, VAULT_PASSPHRASE),
+            "passphrase": VAULT_PASSPHRASE,
+            "key_mismatch_policy": "REKEY_AND_BUMP_DATASET_EPOCH",
+        },
+    )
+    assert r_tampered.status_code == 422
+    assert r_tampered.json()["detail"]["code"] == "TAMPERED_LINEAGE_EVIDENCE_ARTIFACT"
+
+    # 3c. Forged artifact with matching SHA-256 on bridge, but broken internal displaced audit_chain -> 422 INVALID_LINEAGE_DISPLACED_AUDIT_CHAIN
+    mut_forged_chain = json.loads(json.dumps(plain_b1))
+    forged_sha = _hashlib.sha256(tampered_bytes).hexdigest()
+    mut_forged_chain["audit_lineage_artifacts"][dropped_fname] = {
+        "encoding": "zlib+base64",
+        "raw_size_bytes": len(tampered_bytes),
+        "sha256": forged_sha,
+        "data_b64": _b64.b64encode(_zlib.compress(tampered_bytes, level=9)).decode("ascii"),
+    }
+    for br_obj in mut_forged_chain["audit_lineage_bridges"]:
+        if br_obj["pre_restore_filename"] == dropped_fname:
+            br_obj["pre_restore_sha256"] = forged_sha
+    r_forged = client_c.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": _reencrypt_vault_plaintext(mut_forged_chain, VAULT_PASSPHRASE),
+            "passphrase": VAULT_PASSPHRASE,
+            "key_mismatch_policy": "REKEY_AND_BUMP_DATASET_EPOCH",
+        },
+    )
+    assert r_forged.status_code == 422
+    assert r_forged.json()["detail"]["code"] == "INVALID_LINEAGE_DISPLACED_AUDIT_CHAIN"
+
+    # 3d. Key mismatch REJECT still enforced -> 409 CRYPTO_KEY_FINGERPRINT_MISMATCH
+    r_c_reject = client_c.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": vault_b1_bytes.decode("utf-8"),
+            "passphrase": VAULT_PASSPHRASE,
+            "expected_store_epoch": 1,
+            "key_mismatch_policy": "REJECT",
+        },
+    )
+    assert r_c_reject.status_code == 409
+    assert r_c_reject.json()["detail"]["code"] == "CRYPTO_KEY_FINGERPRINT_MISMATCH"
+
+    # 3e. Authorized multi-hop restore onto C with REKEY_AND_BUMP_DATASET_EPOCH -> 200 OK & 3/3 valid lineage bridges, AND re-export from C -> D!
+    r_res_c = client_c.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": vault_b1_bytes.decode("utf-8"),
+            "passphrase": VAULT_PASSPHRASE,
+            "expected_store_epoch": 1,
+            "preserve_current_users": True,
+            "key_mismatch_policy": "REKEY_AND_BUMP_DATASET_EPOCH",
+        },
+    )
+    assert r_res_c.status_code == 200, r_res_c.text
+    res_c_body = r_res_c.json()
+    assert res_c_body["export_dataset_epoch"] == 2
+    assert res_c_body["imported_lineage_artifact_count"] == 2
+
+    audit_c = client_c.get("/api/audit/verify").json()
+    assert audit_c["verification"]["valid"] is True
+    assert audit_c["lineage_verification"]["valid"] is True
+    assert audit_c["lineage_verification"]["bridge_count"] == 3
+    for br_c in audit_c["audit_lineage_bridges"]:
+        assert br_c["pre_restore_file_present"] is True
+        assert br_c["pre_restore_sha256_valid"] is True
+        assert br_c["displaced_audit_chain_valid"] is True
+        assert br_c["valid"] is True
+
+    # 3f. Export from C (which has a bridge with key_mismatch_policy == REKEY_AND_BUMP_DATASET_EPOCH!) and restore onto Server D!
+    r_exp_c1 = client_c.post("/api/exports/profile-a", json={"passphrase": VAULT_PASSPHRASE})
+    assert r_exp_c1.status_code == 200
+    cfg_d, app_d = _build_test_app(
+        tmp_path / "server_d",
+        auto_seed=False,
+        mrn_key="different-server-c-mrn-key-2026-omega",
+        shift_key="different-server-c-shift-key-2026-omega",
+    )
+    client_d = _client(app_d)
+    assert client_d.post("/api/auth/local-bypass", json={"target_username": "vukhuongan"}).status_code == 200
+
+    # 3g (R2-02 PROBE_2A): Stripping audit_lineage_bridges=[] & audit_lineage_artifacts={} while audit_chain has RESTORE_PROFILE_A_ENCRYPTED -> 422!
+    mut_stripped_bridges = json.loads(json.dumps(plain_b1))
+    mut_stripped_bridges["audit_lineage_bridges"] = []
+    mut_stripped_bridges["audit_lineage_artifacts"] = {}
+    r_stripped = client_d.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": _reencrypt_vault_plaintext(mut_stripped_bridges, VAULT_PASSPHRASE),
+            "passphrase": VAULT_PASSPHRASE,
+            "key_mismatch_policy": "REKEY_AND_BUMP_DATASET_EPOCH",
+        },
+    )
+    assert r_stripped.status_code == 422
+    assert r_stripped.json()["detail"]["code"] == "MISSING_LINEAGE_BRIDGE_FOR_AUDIT_EVENT"
+
+    # 3h (R2-03 PROBE_3): Partial fsync failure on imported_lineage_write + failed quarantine must NOT wedge retry with 409!
+    real_fsync = os.fsync
+    real_move = _shutil.move
+    imp_fault_done = {"triggered": False}
+
+    def _fail_first_imp_fsync(fd: int) -> None:
+        if not imp_fault_done["triggered"]:
+            imp_fault_done["triggered"] = True
+            raise OSError("Simulated ENOSPC mid-write on imported lineage temp file")
+        real_fsync(fd)
+
+    def _fail_quarantine_move(src: Any, dst: Any, *args: Any, **kwargs: Any) -> Any:
+        if "failed_tmp" in Path(str(dst)).name:
+            raise OSError("Simulated ENOSPC blocking quarantine move")
+        return real_move(src, dst, *args, **kwargs)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(os, "fsync", _fail_first_imp_fsync)
+        mp.setattr(_shutil, "move", _fail_quarantine_move)
+        r_imp_abort = client_d.post(
+            "/api/admin/restore-profile-a",
+            json={
+                "vault_text": r_exp_c1.text,
+                "passphrase": VAULT_PASSPHRASE,
+                "expected_store_epoch": 1,
+                "preserve_current_users": True,
+            },
+        )
+    assert r_imp_abort.status_code == 500
+    assert r_imp_abort.json()["detail"]["committed"] is False
+    assert r_imp_abort.json()["detail"]["stage"] == "imported_lineage_write"
+
+    # Clean retry of the exact same vault onto Server D succeeds 200 OK (not wedged with 409 LINEAGE_ARTIFACT_COLLISION!)
+    r_res_d = client_d.post(
+        "/api/admin/restore-profile-a",
+        json={
+            "vault_text": r_exp_c1.text,
+            "passphrase": VAULT_PASSPHRASE,
+            "expected_store_epoch": 1,
+            "preserve_current_users": True,
+        },
+    )
+    assert r_res_d.status_code == 200, r_res_d.text
+    audit_d = client_d.get("/api/audit/verify").json()
+    assert audit_d["verification"]["valid"] is True
+    assert audit_d["lineage_verification"]["valid"] is True
+    assert audit_d["lineage_verification"]["audit_chain_consistency_valid"] is True
+    assert audit_d["lineage_verification"]["bridge_count"] == 4
+
+    # 3i (R2-02 PROBE_2B): Stripping audit_lineage_bridges on live disk makes /api/audit/verify False & blocks Profile A export (409)
+    d_state_path = cfg_d.data_dir / "endolog_state.json"
+    d_state_tampered = json.loads(d_state_path.read_text(encoding="utf-8"))
+    d_state_tampered["audit_lineage_bridges"] = []
+    d_state_path.write_text(json.dumps(d_state_tampered, ensure_ascii=False, indent=2), encoding="utf-8")
+    audit_d_tampered = client_d.get("/api/audit/verify").json()
+    assert audit_d_tampered["lineage_verification"]["valid"] is False
+    assert audit_d_tampered["lineage_verification"]["audit_chain_consistency_valid"] is False
+    r_exp_d_tampered = client_d.post("/api/exports/profile-a", json={"passphrase": VAULT_PASSPHRASE})
+    assert r_exp_d_tampered.status_code == 409
+    assert r_exp_d_tampered.json()["detail"]["code"] == "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT"
+

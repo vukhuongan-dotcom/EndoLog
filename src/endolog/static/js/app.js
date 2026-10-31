@@ -4278,8 +4278,15 @@
           if (resp.ok) {
             const data = await resp.json();
             if (!isSessionActiveForEpoch(reqEpoch)) return;
+            const postWarnings = Array.isArray(data.post_commit_warnings) ? data.post_commit_warnings : [];
+            const firstPostWarnText = postWarnings.length > 0
+              ? (postWarnings[0].message || 'Có cảnh báo đồng bộ tệp phụ hậu khôi phục.')
+              : '';
             if (data.reauthentication_required) {
-              wipeClinicalDomAndShowLogin('Đã khôi phục kho sao lưu nguyên tử kèm bảng tài khoản trong bản sao lưu. Vui lòng đăng nhập lại.');
+              const reloginMsg = postWarnings.length > 0
+                ? 'Đã commit khôi phục kho sao lưu kèm bảng tài khoản (có cảnh báo hậu xử lý tệp phụ: ' + firstPostWarnText + '). Vui lòng đăng nhập lại.'
+                : 'Đã khôi phục kho sao lưu nguyên tử kèm bảng tài khoản trong bản sao lưu. Vui lòng đăng nhập lại.';
+              wipeClinicalDomAndShowLogin(reloginMsg);
               return;
             }
             state.storeEpoch = Number(data.new_store_epoch) || (state.storeEpoch + 1);
@@ -4291,11 +4298,19 @@
             armHardSessionTimer((Number(data.expires_in_seconds) || 900) * 1000);
             await loadAllClinicalViews(reqEpoch);
             if (isSessionActiveForEpoch(reqEpoch)) {
-              setAdminFeedback(
-                'el-admin-restore-feedback',
-                'Đã khôi phục nguyên tử sang kỷ nguyên kho #' + state.storeEpoch + ' và lưu ảnh chụp dự phòng khớp SHA-256.',
-                true
-              );
+              if (postWarnings.length > 0) {
+                setAdminFeedback(
+                  'el-admin-restore-feedback',
+                  'Kho dữ liệu đã commit sang kỷ nguyên kho #' + state.storeEpoch + ', nhưng có cảnh báo hậu xử lý tệp phụ: ' + firstPostWarnText,
+                  false
+                );
+              } else {
+                setAdminFeedback(
+                  'el-admin-restore-feedback',
+                  'Đã khôi phục nguyên tử sang kỷ nguyên kho #' + state.storeEpoch + ' và lưu ảnh chụp dự phòng khớp SHA-256.',
+                  true
+                );
+              }
             }
             return;
           }

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import csv
 import datetime as dt
@@ -11,6 +12,8 @@ import io
 import json
 import os
 import re
+import zlib
+from pathlib import Path
 from typing import Any
 
 from argon2.low_level import Type, hash_secret_raw
@@ -22,10 +25,17 @@ from pydantic import ValidationError
 from endolog.clinical.adverse_events import summarize_case_adverse_events
 from endolog.clinical.bbps import evaluate_bbps, extract_bbps_segments
 from endolog.clinical.quality_metrics import compute_ercp_session_indices, compute_kpi_snapshot
-from endolog.core.audit import verify_audit_chain
+from endolog.core.audit import (
+    RestoreLineageSignature,
+    collect_audit_chain_restore_signatures,
+    extract_restore_lineage_signature,
+    verify_audit_chain,
+)
 from endolog.schemas.clinical import (
+    StoredAuditLineageBridge,
     StoredCaseRecord,
     StoredEpisodeRecord,
+    StoredLineageArtifactEntry,
     StoredPatientRecord,
     StoredSettingsRecord,
     StoredSurveillanceRecord,
@@ -33,6 +43,9 @@ from endolog.schemas.clinical import (
 )
 
 MAX_VAULT_BLOB_BYTES = 10_485_760  # 10 MiB strict pre-KDF ceiling (G02)
+MAX_LINEAGE_BRIDGES = 128
+MAX_SINGLE_LINEAGE_ARTIFACT_BYTES = 10_485_760  # 10 MiB uncompressed ceiling per pre_restore artifact (C02)
+MAX_TOTAL_LINEAGE_ARTIFACTS_BYTES = 33_554_432  # 32 MiB total uncompressed ceiling across lineage bundle (C02)
 _HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 _CASE_CODE_RE = re.compile(r"^(EGD|COL|ERCP)-(\d{4})-(\d{4,})$")
 _COUNTER_KEY_RE = re.compile(r"^(EGD|COL|ERCP)-(\d{4})$")
@@ -70,6 +83,7 @@ _ALLOWED_VAULT_ROOT_KEYS = frozenset(
         "counters",
         "audit_chain",
         "audit_lineage_bridges",
+        "audit_lineage_artifacts",
         "revoked_jtis",
         "crypto_context",
     }
@@ -90,7 +104,7 @@ _REQUIRED_VAULT_ROOT_KEYS = frozenset(
 
 
 class VaultPayloadTooLargeError(ValueError):
-    """Raised when uploaded .endolog.enc blob exceeds 10 MiB before KDF (HTTP 413)."""
+    """Raised when uploaded or exported .endolog.enc blob exceeds 10 MiB before KDF (HTTP 413)."""
 
     def __init__(self, message: str = "Tệp sao lưu vượt giới hạn tối đa 10 MiB.") -> None:
         self.code = "VAULT_PAYLOAD_TOO_LARGE"
@@ -112,6 +126,15 @@ class VaultDecryptError(ValueError):
 
     def __init__(self, message: str = "Sai mật khẩu giải mã hoặc tệp sao lưu Hồ sơ A đã bị biến đổi.") -> None:
         self.code = "VAULT_DECRYPT_FAILED"
+        self.message = message
+        super().__init__(message)
+
+
+class LineageEvidenceExportError(ValueError):
+    """Raised when exporting Profile A from a store whose local pre_restore lineage evidence is missing or tampered (HTTP 409)."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
         self.message = message
         super().__init__(message)
 
@@ -194,18 +217,180 @@ def validate_profile_a_envelope_pre_kdf(blob: bytes) -> dict[str, Any]:
     }
 
 
+def pack_lineage_artifacts_for_export(
+    bridges: list[dict[str, Any]] | None,
+    backup_dir: Path | None,
+    *,
+    audit_chain: list[dict[str, Any]] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Bundle verified historical pre_restore_*.json artifacts inside encrypted Profile A vault for portable cross-machine lineage (C02)."""
+    ok_root_sigs, root_restore_sigs = collect_audit_chain_restore_signatures(audit_chain)
+    if not ok_root_sigs:
+        raise LineageEvidenceExportError(
+            "LINEAGE_EVIDENCE_CORRUPTED_ON_EXPORT",
+            "Chuỗi kiểm toán trên máy chủ nguồn chứa sự kiện khôi phục sai cấu trúc siêu dữ liệu.",
+        )
+
+    items = bridges or []
+    if not items:
+        if root_restore_sigs:
+            raise LineageEvidenceExportError(
+                "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT",
+                "Chuỗi kiểm toán ghi nhận lịch sử khôi phục nhưng thiếu danh sách cầu nối audit_lineage_bridges trên máy chủ nguồn.",
+            )
+        return {}
+    if len(items) > MAX_LINEAGE_BRIDGES:
+        raise LineageEvidenceExportError(
+            "LINEAGE_BRIDGE_LIMIT_EXCEEDED",
+            f"Số lượng cầu nối lịch sử khôi phục ({len(items)}) vượt ngưỡng an toàn {MAX_LINEAGE_BRIDGES}.",
+        )
+    if backup_dir is None:
+        raise LineageEvidenceExportError(
+            "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT",
+            "Kho dữ liệu có lịch sử khôi phục nhưng chưa cung cấp thư mục backup_dir để đóng gói bằng chứng kế thừa kiểm toán.",
+        )
+
+    packed: dict[str, dict[str, Any]] = {}
+    bridge_sigs: set[RestoreLineageSignature] = set()
+    displaced_restore_sigs: set[RestoreLineageSignature] = set()
+    nested_bridge_sigs: set[RestoreLineageSignature] = set()
+    total_raw_bytes = 0
+    for raw_br in items:
+        try:
+            br = StoredAuditLineageBridge.model_validate(raw_br)
+        except ValidationError as exc:
+            raise LineageEvidenceExportError(
+                "INVALID_LINEAGE_BRIDGE_ON_EXPORT",
+                "Siêu dữ liệu cầu nối kiểm toán trên máy chủ nguồn không hợp lệ.",
+            ) from exc
+
+        sig = extract_restore_lineage_signature(br.model_dump())
+        if sig is None:
+            raise LineageEvidenceExportError(
+                "INVALID_LINEAGE_BRIDGE_ON_EXPORT",
+                "Chữ ký cầu nối kiểm toán trên máy chủ nguồn không hợp lệ.",
+            )
+        bridge_sigs.add(sig)
+
+        fname = br.pre_restore_filename
+        if fname in packed:
+            if packed[fname]["sha256"] != br.pre_restore_sha256.lower():
+                raise LineageEvidenceExportError(
+                    "LINEAGE_EVIDENCE_CORRUPTED_ON_EXPORT",
+                    f"Phát hiện xung đột mã băm trên tệp bằng chứng lịch sử '{fname}'.",
+                )
+            continue
+
+        artifact_path = backup_dir / fname
+        if not artifact_path.is_file():
+            raise LineageEvidenceExportError(
+                "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT",
+                f"Thiếu tệp bằng chứng lịch sử '{fname}' trên máy chủ nguồn; từ chối xuất bản sao lưu thiếu bằng chứng kiểm toán.",
+            )
+        try:
+            raw_bytes = artifact_path.read_bytes()
+        except OSError as exc:
+            raise LineageEvidenceExportError(
+                "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT",
+                f"Không thể đọc tệp bằng chứng lịch sử '{fname}' trên máy chủ nguồn.",
+            ) from exc
+
+        if len(raw_bytes) > MAX_SINGLE_LINEAGE_ARTIFACT_BYTES:
+            raise LineageEvidenceExportError(
+                "LINEAGE_ARTIFACT_TOO_LARGE_ON_EXPORT",
+                f"Tệp bằng chứng lịch sử '{fname}' vượt trần 10 MiB.",
+            )
+        total_raw_bytes += len(raw_bytes)
+        if total_raw_bytes > MAX_TOTAL_LINEAGE_ARTIFACTS_BYTES:
+            raise LineageEvidenceExportError(
+                "LINEAGE_ARTIFACTS_TOTAL_TOO_LARGE_ON_EXPORT",
+                "Tổng dung lượng giải nén các tệp bằng chứng lịch sử vượt trần 32 MiB.",
+            )
+
+        actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+        expected_sha = br.pre_restore_sha256.lower()
+        if actual_sha != expected_sha:
+            raise LineageEvidenceExportError(
+                "LINEAGE_EVIDENCE_CORRUPTED_ON_EXPORT",
+                f"Tệp bằng chứng lịch sử '{fname}' trên máy chủ nguồn không khớp mã băm SHA-256 đã niêm phong.",
+            )
+
+        try:
+            displaced_obj = json.loads(raw_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise LineageEvidenceExportError(
+                "LINEAGE_EVIDENCE_CORRUPTED_ON_EXPORT",
+                f"Tệp bằng chứng lịch sử '{fname}' không phải JSON hợp lệ.",
+            ) from exc
+        if not isinstance(displaced_obj, dict) or not isinstance(displaced_obj.get("audit_chain"), list):
+            raise LineageEvidenceExportError(
+                "LINEAGE_EVIDENCE_CORRUPTED_ON_EXPORT",
+                f"Tệp bằng chứng lịch sử '{fname}' thiếu chuỗi kiểm toán hợp lệ.",
+            )
+        d_ver = verify_audit_chain(displaced_obj["audit_chain"])
+        ok_disp_sigs, disp_sigs = collect_audit_chain_restore_signatures(displaced_obj["audit_chain"])
+        nested_raw = displaced_obj.get("audit_lineage_bridges") or []
+        ok_nested = isinstance(nested_raw, list)
+        if ok_nested:
+            for nb in nested_raw:
+                nb_sig = extract_restore_lineage_signature(nb)
+                if nb_sig is None:
+                    ok_nested = False
+                    break
+                nested_bridge_sigs.add(nb_sig)
+        if (
+            not d_ver.get("valid")
+            or not ok_disp_sigs
+            or not ok_nested
+            or str(d_ver.get("head_hash") or "").lower() != br.displaced_live_head_hash.lower()
+            or int(d_ver.get("checked_entries") or -1) != br.displaced_live_seq
+        ):
+            raise LineageEvidenceExportError(
+                "LINEAGE_EVIDENCE_CORRUPTED_ON_EXPORT",
+                f"Chuỗi kiểm toán trong tệp bằng chứng '{fname}' không khớp cầu nối kiểm toán trên máy chủ nguồn.",
+            )
+        displaced_restore_sigs |= disp_sigs
+
+        comp_bytes = zlib.compress(raw_bytes, level=9)
+        packed[fname] = {
+            "encoding": "zlib+base64",
+            "raw_size_bytes": len(raw_bytes),
+            "sha256": expected_sha,
+            "data_b64": base64.b64encode(comp_bytes).decode("ascii"),
+        }
+
+    if not nested_bridge_sigs.issubset(bridge_sigs):
+        raise LineageEvidenceExportError(
+            "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT",
+            "Thiếu cầu nối kiểm toán tổ tiên được tham chiếu trong tệp bằng chứng lịch sử.",
+        )
+    if audit_chain is not None and bridge_sigs != (root_restore_sigs | displaced_restore_sigs):
+        raise LineageEvidenceExportError(
+            "LINEAGE_EVIDENCE_INCOMPLETE_ON_EXPORT",
+            "Danh sách cầu nối kiểm toán không khớp toàn vẹn với các sự kiện khôi phục trong chuỗi kiểm toán.",
+        )
+
+    return packed
+
+
 def export_profile_a_encrypted_vault(
     state_snapshot: dict[str, Any],
     passphrase: str,
     *,
     crypto_context: dict[str, Any] | None = None,
+    backup_dir: Path | None = None,
 ) -> bytes:
-    """Profile A: AES-256-GCM + Argon2id KDF full backup (Superadmin exclusive)."""
+    """Profile A: AES-256-GCM + Argon2id KDF full backup with portable lineage evidence bundle (Superadmin exclusive)."""
     if len(passphrase) < 12:
         raise ValueError("Mật khẩu mã hóa sao lưu Profile A phải có tối thiểu 12 ký tự.")
     snap_to_encrypt = copy.deepcopy(state_snapshot)
     if crypto_context is not None:
         snap_to_encrypt["crypto_context"] = dict(crypto_context)
+    snap_to_encrypt["audit_lineage_artifacts"] = pack_lineage_artifacts_for_export(
+        snap_to_encrypt.get("audit_lineage_bridges"),
+        backup_dir,
+        audit_chain=snap_to_encrypt.get("audit_chain"),
+    )
 
     salt = os.urandom(16)
     nonce = os.urandom(12)
@@ -232,7 +417,10 @@ def export_profile_a_encrypted_vault(
     }
     if crypto_context is not None:
         envelope["key_context_hint"] = dict(crypto_context)
-    return json.dumps(envelope, indent=2).encode("utf-8")
+    encoded_envelope = json.dumps(envelope, indent=2).encode("utf-8")
+    if len(encoded_envelope) > MAX_VAULT_BLOB_BYTES:
+        raise VaultPayloadTooLargeError()
+    return encoded_envelope
 
 
 def decrypt_profile_a_vault(blob: bytes, passphrase: str) -> dict[str, Any]:
@@ -270,12 +458,227 @@ def _is_strict_int(val: Any) -> bool:
     return isinstance(val, int) and not isinstance(val, bool)
 
 
+def extract_and_validate_lineage_artifacts(vault_data: dict[str, Any]) -> dict[str, bytes]:
+    """Validate audit_lineage_bridges, bundled pre_restore_*.json artifacts, and hash-chained restore event bijection (C02)."""
+    if "audit_lineage_bridges" in vault_data and not isinstance(vault_data["audit_lineage_bridges"], list):
+        raise VaultSchemaValidationError("INVALID_AUDIT_LINEAGE", "audit_lineage_bridges phải là danh sách.")
+    if "audit_lineage_artifacts" in vault_data and vault_data["audit_lineage_artifacts"] is not None:
+        if not isinstance(vault_data["audit_lineage_artifacts"], dict):
+            raise VaultSchemaValidationError(
+                "INVALID_AUDIT_LINEAGE_ARTIFACTS",
+                "audit_lineage_artifacts phải là từ điển JSON.",
+            )
+
+    has_root_chain = "audit_chain" in vault_data and vault_data.get("audit_chain") is not None
+    ok_root_sigs, root_restore_sigs = collect_audit_chain_restore_signatures(
+        vault_data.get("audit_chain") if has_root_chain else None
+    )
+    if not ok_root_sigs:
+        raise VaultSchemaValidationError(
+            "INVALID_AUDIT_LINEAGE_CHAIN_EVENT",
+            "Sự kiện khôi phục trong chuỗi kiểm toán của bản sao lưu sai cấu trúc siêu dữ liệu.",
+        )
+
+    raw_bridges: list[Any] = vault_data.get("audit_lineage_bridges") or []
+    if len(raw_bridges) > MAX_LINEAGE_BRIDGES:
+        raise VaultSchemaValidationError(
+            "LINEAGE_BRIDGE_LIMIT_EXCEEDED",
+            f"Số lượng cầu nối lịch sử khôi phục ({len(raw_bridges)}) vượt ngưỡng tối đa {MAX_LINEAGE_BRIDGES}.",
+        )
+
+    validated_bridges: list[StoredAuditLineageBridge] = []
+    bridge_sigs: set[RestoreLineageSignature] = set()
+    expected_sha_by_fname: dict[str, str] = {}
+    for raw_br in raw_bridges:
+        try:
+            br = StoredAuditLineageBridge.model_validate(raw_br)
+        except ValidationError as exc:
+            raise VaultSchemaValidationError(
+                "INVALID_AUDIT_LINEAGE_BRIDGE_SCHEMA",
+                "Bản ghi cầu nối lịch sử kiểm toán trong bản sao lưu sai cấu trúc.",
+            ) from exc
+        if br.new_store_epoch <= br.previous_store_epoch:
+            raise VaultSchemaValidationError(
+                "INVALID_AUDIT_LINEAGE_EPOCH_ORDER",
+                "Cầu nối lịch sử kiểm toán có thứ tự store_epoch không hợp lệ.",
+            )
+        sig = extract_restore_lineage_signature(br.model_dump())
+        if sig is None:
+            raise VaultSchemaValidationError(
+                "INVALID_AUDIT_LINEAGE_BRIDGE_SCHEMA",
+                "Chữ ký cầu nối lịch sử kiểm toán không hợp lệ.",
+            )
+        bridge_sigs.add(sig)
+        sha_lc = br.pre_restore_sha256.lower()
+        prev_sha = expected_sha_by_fname.get(br.pre_restore_filename)
+        if prev_sha is not None and prev_sha != sha_lc:
+            raise VaultSchemaValidationError(
+                "CONFLICTING_LINEAGE_ARTIFACT_HASH",
+                f"Phát hiện hai cầu nối cùng tên tệp '{br.pre_restore_filename}' nhưng khác mã băm SHA-256.",
+            )
+        expected_sha_by_fname[br.pre_restore_filename] = sha_lc
+        validated_bridges.append(br)
+
+    artifacts_map: dict[str, Any] = vault_data.get("audit_lineage_artifacts") or {}
+    required_fnames = set(expected_sha_by_fname.keys())
+    provided_fnames = set(artifacts_map.keys())
+
+    missing_fnames = sorted(required_fnames - provided_fnames)
+    if missing_fnames:
+        raise VaultSchemaValidationError(
+            "MISSING_LINEAGE_EVIDENCE_ARTIFACT",
+            f"Bản sao lưu có lịch sử khôi phục nhưng thiếu tệp bằng chứng lịch sử đi kèm ({missing_fnames[0]}).",
+        )
+
+    extra_fnames = sorted(provided_fnames - required_fnames)
+    if extra_fnames:
+        raise VaultSchemaValidationError(
+            "UNREFERENCED_LINEAGE_EVIDENCE_ARTIFACT",
+            f"Bản sao lưu chứa tệp bằng chứng lịch sử không thuộc cầu nối kiểm toán nào ({extra_fnames[0]}).",
+        )
+
+    decompressed_by_fname: dict[str, bytes] = {}
+    displaced_restore_sigs: set[RestoreLineageSignature] = set()
+    nested_bridge_sigs: set[RestoreLineageSignature] = set()
+    total_decompressed = 0
+    for br in validated_bridges:
+        fname = br.pre_restore_filename
+        if fname in decompressed_by_fname:
+            raw_bytes = decompressed_by_fname[fname]
+        else:
+            raw_entry = artifacts_map[fname]
+            try:
+                entry = StoredLineageArtifactEntry.model_validate(raw_entry)
+            except ValidationError as exc:
+                raise VaultSchemaValidationError(
+                    "INVALID_LINEAGE_ARTIFACT_SCHEMA",
+                    f"Cấu trúc tệp bằng chứng lịch sử '{fname}' trong bản sao lưu không hợp lệ.",
+                ) from exc
+
+            if entry.sha256.lower() != br.pre_restore_sha256.lower():
+                raise VaultSchemaValidationError(
+                    "TAMPERED_LINEAGE_EVIDENCE_ARTIFACT",
+                    f"Mã băm khai báo của tệp bằng chứng '{fname}' không khớp cầu nối kiểm toán.",
+                )
+
+            try:
+                comp_bytes = base64.b64decode(entry.data_b64.encode("ascii"), validate=True)
+            except Exception as exc:
+                raise VaultSchemaValidationError(
+                    "INVALID_LINEAGE_ARTIFACT_BASE64",
+                    f"Dữ liệu Base64 của tệp bằng chứng lịch sử '{fname}' không hợp lệ.",
+                ) from exc
+
+            try:
+                dobj = zlib.decompressobj()
+                head_chunk = dobj.decompress(comp_bytes, MAX_SINGLE_LINEAGE_ARTIFACT_BYTES + 1)
+                if dobj.unconsumed_tail or len(head_chunk) > MAX_SINGLE_LINEAGE_ARTIFACT_BYTES:
+                    raise VaultSchemaValidationError(
+                        "LINEAGE_ARTIFACT_TOO_LARGE",
+                        f"Tệp bằng chứng lịch sử '{fname}' vượt trần giải nén 10 MiB.",
+                    )
+                tail_chunk = dobj.flush(MAX_SINGLE_LINEAGE_ARTIFACT_BYTES + 1 - len(head_chunk))
+                raw_bytes = head_chunk + tail_chunk
+                if not dobj.eof or len(raw_bytes) > MAX_SINGLE_LINEAGE_ARTIFACT_BYTES:
+                    raise VaultSchemaValidationError(
+                        "LINEAGE_ARTIFACT_TOO_LARGE",
+                        f"Luồng nén của tệp bằng chứng lịch sử '{fname}' không hợp lệ hoặc vượt trần 10 MiB.",
+                    )
+            except VaultSchemaValidationError:
+                raise
+            except zlib.error as exc:
+                raise VaultSchemaValidationError(
+                    "TAMPERED_LINEAGE_EVIDENCE_ARTIFACT",
+                    f"Không thể giải nén tệp bằng chứng lịch sử '{fname}'; dữ liệu nén đã bị hỏng.",
+                ) from exc
+
+            total_decompressed += len(raw_bytes)
+            if total_decompressed > MAX_TOTAL_LINEAGE_ARTIFACTS_BYTES:
+                raise VaultSchemaValidationError(
+                    "LINEAGE_ARTIFACTS_TOTAL_TOO_LARGE",
+                    "Tổng dung lượng giải nén các tệp bằng chứng lịch sử vượt trần 32 MiB.",
+                )
+
+            if len(raw_bytes) != entry.raw_size_bytes:
+                raise VaultSchemaValidationError(
+                    "TAMPERED_LINEAGE_EVIDENCE_ARTIFACT",
+                    f"Kích thước giải nén thực tế của '{fname}' không khớp trường raw_size_bytes.",
+                )
+
+            actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+            if actual_sha != br.pre_restore_sha256.lower():
+                raise VaultSchemaValidationError(
+                    "TAMPERED_LINEAGE_EVIDENCE_ARTIFACT",
+                    f"Nội dung giải nén của tệp bằng chứng '{fname}' không khớp mã băm SHA-256 trong cầu nối kiểm toán.",
+                )
+
+            decompressed_by_fname[fname] = raw_bytes
+
+        try:
+            displaced_obj = json.loads(raw_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise VaultSchemaValidationError(
+                "INVALID_LINEAGE_DISPLACED_AUDIT_CHAIN",
+                f"Nội dung tệp bằng chứng lịch sử '{fname}' không phải JSON hợp lệ.",
+            ) from exc
+
+        if not isinstance(displaced_obj, dict) or not isinstance(displaced_obj.get("audit_chain"), list):
+            raise VaultSchemaValidationError(
+                "INVALID_LINEAGE_DISPLACED_AUDIT_CHAIN",
+                f"Tệp bằng chứng lịch sử '{fname}' không chứa bảng audit_chain hợp lệ.",
+            )
+        d_ver = verify_audit_chain(displaced_obj["audit_chain"])
+        ok_disp_sigs, disp_sigs = collect_audit_chain_restore_signatures(displaced_obj["audit_chain"])
+        nested_raw = displaced_obj.get("audit_lineage_bridges") or []
+        ok_nested = isinstance(nested_raw, list)
+        if ok_nested:
+            for nb in nested_raw:
+                nb_sig = extract_restore_lineage_signature(nb)
+                if nb_sig is None:
+                    ok_nested = False
+                    break
+                nested_bridge_sigs.add(nb_sig)
+        if (
+            not d_ver.get("valid")
+            or not ok_disp_sigs
+            or not ok_nested
+            or str(d_ver.get("head_hash") or "").lower() != br.displaced_live_head_hash.lower()
+            or int(d_ver.get("checked_entries") or -1) != br.displaced_live_seq
+        ):
+            raise VaultSchemaValidationError(
+                "INVALID_LINEAGE_DISPLACED_AUDIT_CHAIN",
+                f"Chuỗi kiểm toán bên trong tệp bằng chứng '{fname}' không khớp displaced_live_head_hash/seq của cầu nối.",
+            )
+        displaced_restore_sigs |= disp_sigs
+
+    if not nested_bridge_sigs.issubset(bridge_sigs):
+        raise VaultSchemaValidationError(
+            "MISSING_LINEAGE_BRIDGE_FOR_AUDIT_EVENT",
+            "Bản sao lưu thiếu cầu nối kiểm toán tổ tiên được tham chiếu trong tệp bằng chứng lịch sử.",
+        )
+
+    if has_root_chain:
+        expected_all_restore_sigs = root_restore_sigs | displaced_restore_sigs
+        if expected_all_restore_sigs - bridge_sigs:
+            raise VaultSchemaValidationError(
+                "MISSING_LINEAGE_BRIDGE_FOR_AUDIT_EVENT",
+                "Chuỗi kiểm toán ghi nhận sự kiện khôi phục trước đó nhưng thiếu bản ghi cầu nối hoặc tệp bằng chứng tương ứng.",
+            )
+        if bridge_sigs - expected_all_restore_sigs:
+            raise VaultSchemaValidationError(
+                "UNBACKED_LINEAGE_BRIDGE",
+                "Bản sao lưu chứa cầu nối lịch sử khôi phục không khớp bất kỳ sự kiện kiểm toán hợp lệ nào.",
+            )
+
+    return decompressed_by_fname
+
+
 def validate_restored_vault_domain(
     vault_data: dict[str, Any],
     *,
     preserve_current_users: bool,
 ) -> dict[str, Any]:
-    """Layer 2 strict Pydantic & cross-entity referential validator for restored Profile A snapshots (G02)."""
+    """Layer 2 strict Pydantic & cross-entity referential validator for restored Profile A snapshots (G02/C02)."""
     if not isinstance(vault_data, dict):
         raise VaultSchemaValidationError("UNSUPPORTED_VAULT_SCHEMA", "Dữ liệu kho không phải đối tượng hợp lệ.")
 
@@ -317,8 +720,7 @@ def validate_restored_vault_domain(
             f"Chuỗi băm kiểm toán SHA-256 của bản sao lưu không toàn vẹn ({audit_ver.get('reason')}).",
         )
 
-    if "audit_lineage_bridges" in vault_data and not isinstance(vault_data["audit_lineage_bridges"], list):
-        raise VaultSchemaValidationError("INVALID_AUDIT_LINEAGE", "audit_lineage_bridges phải là danh sách.")
+    extract_and_validate_lineage_artifacts(vault_data)
 
     if "crypto_context" in vault_data and vault_data["crypto_context"] is not None:
         cctx = vault_data["crypto_context"]

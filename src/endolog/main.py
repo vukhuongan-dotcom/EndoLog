@@ -25,6 +25,7 @@ from endolog.api.service import (
 from endolog.clinical.cusum import build_cusum_series_from_cases
 from endolog.clinical.export_profiles import (
     MAX_VAULT_BLOB_BYTES,
+    LineageEvidenceExportError,
     VaultDecryptError,
     VaultPayloadTooLargeError,
     VaultSchemaValidationError,
@@ -42,7 +43,7 @@ from endolog.core.audit import (
 )
 from endolog.core.config import EndoLogSettings, load_settings
 from endolog.core.dlp import DlpViolationError
-from endolog.core.persistence import AtomicJsonStore
+from endolog.core.persistence import AtomicJsonStore, RestorePreCommitIOError
 from endolog.core.security import (
     COOKIE_NAME,
     SessionRevokedError,
@@ -713,6 +714,7 @@ def create_app(
         lineage_ver = verify_audit_lineage_bridges(
             snap.get("audit_lineage_bridges", []),
             backup_dir=cfg.backup_dir,
+            audit_chain=snap.get("audit_chain", []),
         )
         return {
             "store_epoch": int(snap.get("store_epoch", 1) or 1),
@@ -721,6 +723,7 @@ def create_app(
             "lineage_verification": {
                 "valid": lineage_ver["valid"],
                 "bridge_count": lineage_ver["bridge_count"],
+                "audit_chain_consistency_valid": lineage_ver["audit_chain_consistency_valid"],
             },
             "recent_entries": list(reversed(snap["audit_chain"][-20:])),
         }
@@ -791,7 +794,23 @@ def create_app(
         snap = store.read_snapshot()
         ds_epoch = int((snap.get("settings") or {}).get("export_dataset_epoch", 1) or 1)
         crypto_ctx = cfg.build_crypto_context(ds_epoch)
-        blob = export_profile_a_encrypted_vault(snap, body.passphrase, crypto_context=crypto_ctx)
+        try:
+            blob = export_profile_a_encrypted_vault(
+                snap,
+                body.passphrase,
+                crypto_context=crypto_ctx,
+                backup_dir=cfg.backup_dir,
+            )
+        except LineageEvidenceExportError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
+        except VaultPayloadTooLargeError as exc:
+            raise HTTPException(
+                status_code=413,
+                detail={"code": exc.code, "message": exc.message},
+            ) from exc
         store.transact(
             lambda st: st["audit_chain"].append(
                 build_audit_entry(
@@ -805,6 +824,7 @@ def create_app(
                         "bytes": len(blob),
                         "store_epoch": int(st.get("store_epoch", 1) or 1),
                         "export_dataset_epoch": ds_epoch,
+                        "bundled_lineage_artifact_count": len(snap.get("audit_lineage_bridges") or []),
                     },
                 )
             )
@@ -981,12 +1001,24 @@ def create_app(
                 status_code=409,
                 detail={"code": exc.code, "message": exc.message, **exc.extra},
             ) from exc
+        except RestorePreCommitIOError as exc:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "code": exc.code,
+                    "stage": exc.stage,
+                    "committed": False,
+                    "message": exc.message,
+                },
+            ) from exc
         except OSError as exc:
             raise HTTPException(
                 status_code=500,
                 detail={
-                    "code": "PRE_RESTORE_BACKUP_IO_ERROR",
-                    "message": "Không thể ghi bản sao lưu dự phòng pre_restore trước khôi phục; đã hủy giao dịch để bảo toàn dữ liệu hiện hành.",
+                    "code": "RESTORE_PRE_COMMIT_IO_ERROR",
+                    "stage": "pre_commit_io",
+                    "committed": False,
+                    "message": "Lỗi I/O trước điểm commit khôi phục; giao dịch chưa được ghi nhận vào kho chính.",
                 },
             ) from exc
 

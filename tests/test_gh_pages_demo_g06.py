@@ -102,6 +102,26 @@ def test_g06_html_strips_all_password_and_file_inputs_and_preserves_aria_labels(
     dangling_for = [f for f in re.findall(r'<label\b[^>]*\bfor="([^"]+)"', html) if f not in present_ids]
     assert dangling_for == []
 
+    # Phương án G1+ (v0.3.2): Virtual Patient Picker + readonly identity inputs in dist_pages only
+    assert 'id="el-f-demo-patient-picker"' in html
+    assert 'id="el-btn-demo-reset-store"' in html
+    assert 'id="el-btn-demo-switch-role"' in html
+    assert 'id="el-btn-demo-sim-restore"' in html
+    assert re.search(r'<input\b[^>]*\bid="el-f-full-name"[^>]*\breadonly\b', html)
+    assert re.search(r'<input\b[^>]*\bid="el-f-hospital-mrn"[^>]*\breadonly\b', html)
+
+    fastapi_html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert not re.search(r'<input\b[^>]*\bid="el-f-full-name"[^>]*\breadonly\b', fastapi_html)
+    assert not re.search(r'<input\b[^>]*\bid="el-f-hospital-mrn"[^>]*\breadonly\b', fastapi_html)
+
+    bundle = json.loads((out_dir / "data" / "od05_precomputed_bundle.json").read_text(encoding="utf-8"))
+    assert "initial_ram_store" in bundle
+    assert len(bundle["initial_ram_store"]["cases"]) == 5
+    assert len(bundle["synthetic_patient_catalog"]) == 21
+    bundle_raw = json.dumps(bundle, ensure_ascii=False)
+    for forbidden_secret in ("password_hash", "hospital_mrn_hash", "secondary_mrn_hashes", "crypto_context"):
+        assert forbidden_secret not in bundle_raw
+
 
 def test_g06_sw_demo_prefix_isolation_and_manifest_subpath_scope(tmp_path: Path) -> None:
     out_dir = tmp_path / "dist_pages"
@@ -165,6 +185,7 @@ def test_g06_github_actions_workflow_contract() -> None:
     assert "fetch-depth: 0" in wf_txt
     assert "verify_gate_c_clean_room.py --check-git --require-gitleaks" in wf_txt
     assert "pytest -p no:cacheprovider -v" in wf_txt
+    assert "tests/test_gh_pages_interactive_parity.py" in wf_txt
     assert "tools/check_contrast.py" in wf_txt
     assert "scripts/check_ssot.py" in wf_txt
     assert "PAGES_BASE_PATH: /${{ github.event.repository.name }}/" in wf_txt
@@ -235,3 +256,24 @@ def test_gc02_vietnamese_unicode_paths_and_research_exports_caught(tmp_path: Pat
     assert "sao_lưu_kho.endolog.enc" in joined
     assert "02_DuLieu_Tho/cohort.csv" in joined
     assert "03_ThongKe/table1.xlsx" in joined
+
+
+def test_default_base_path_endolog_and_readonly_operator_guard(tmp_path: Path) -> None:
+    dist_dir = tmp_path / "dist_default_endolog"
+    summary = build_gh_pages_demo(dist_dir)
+    assert summary["base_path"] == "/EndoLog/"
+
+    errs_ok, _ = verify_dist_pages_bundle(dist_dir, require_gitleaks=False)
+    assert errs_ok == []
+
+    # Mutating #el-f-operator to remove readonly must be caught by verify_dist_pages_bundle
+    idx_path = dist_dir / "index.html"
+    orig_html = idx_path.read_text(encoding="utf-8")
+    tampered_html = orig_html.replace(
+        '<input id="el-f-operator" type="text" readonly class="el-form-input"',
+        '<input id="el-f-operator" type="text" class="el-form-input"',
+    )
+    assert tampered_html != orig_html
+    idx_path.write_text(tampered_html, encoding="utf-8")
+    errs_bad, _ = verify_dist_pages_bundle(dist_dir, require_gitleaks=False)
+    assert any("el-f-operator" in e for e in errs_bad)

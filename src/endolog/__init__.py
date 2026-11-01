@@ -1,3 +1,3 @@
 """EndoLog — Hệ thống sổ bộ lâm sàng & đánh giá chất lượng nội soi tiêu hoá."""
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"

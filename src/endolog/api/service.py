@@ -496,8 +496,16 @@ class EndoLogService:
 
             now_iso = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
             changed_fields: list[str] = []
+            nullable_patch_scalars = {
+                "clinician_followup_due_date",
+                "bbps_right",
+                "bbps_transverse",
+                "bbps_left",
+                "withdrawal_time_clean_min",
+            }
             for field_name in (
                 "procedure_start_at",
+                "operator_name",
                 "prior_unrecorded_ercp_offset",
                 "indication",
                 "indication_detail",
@@ -516,7 +524,11 @@ class EndoLogService:
                 "clinical_note",
             ):
                 val = getattr(patch, field_name)
-                if val is not None:
+                if field_name in nullable_patch_scalars:
+                    if field_name in patch.model_fields_set:
+                        rec_case[field_name] = val
+                        changed_fields.append(field_name)
+                elif val is not None:
                     rec_case[field_name] = val
                     changed_fields.append(field_name)
 
@@ -526,8 +538,10 @@ class EndoLogService:
             if patch.prior_unrecorded_ercp_offset is not None and epi_obj.get("care_setting") == "INPATIENT":
                 epi_obj["prior_unrecorded_ercp_offset"] = patch.prior_unrecorded_ercp_offset
 
-            if patch.index_lesion is not None:
-                rec_case["index_lesion"] = patch.index_lesion.model_dump()
+            if "index_lesion" in patch.model_fields_set:
+                rec_case["index_lesion"] = (
+                    patch.index_lesion.model_dump() if patch.index_lesion is not None else None
+                )
                 changed_fields.append("index_lesion")
             if patch.whole_case_summary is not None:
                 rec_case["whole_case_summary"] = patch.whole_case_summary.model_dump()
@@ -840,7 +854,7 @@ class EndoLogService:
     ) -> dict[str, Any]:
         if actor_role != "superadmin":
             raise PermissionError("Chỉ Superadmin (BSCKII. Vũ Khương An) có thẩm quyền gộp hồ sơ người bệnh.")
-        scan_payload_notes({"reason": req.reason})
+        scan_payload_notes(req.model_dump(exclude_none=True))
         if req.source_patient_uid == req.target_patient_uid:
             raise DomainValidationError(
                 "SAME_PATIENT_MERGE_INVALID",
@@ -935,7 +949,7 @@ class EndoLogService:
             tgt["merged_from_aliases"] = tgt_aliases
 
             if has_demo_conflict:
-                if req.resolved_full_name:
+                if req.resolved_full_name and req.resolved_full_name.strip():
                     tgt["full_name"] = req.resolved_full_name.strip()
                     tgt["privacy_initials"] = compute_privacy_initials(tgt["full_name"])
                 if req.resolved_birth_year is not None:
@@ -1064,7 +1078,7 @@ class EndoLogService:
     ) -> dict[str, Any]:
         if actor_role != "superadmin":
             raise PermissionError("Chỉ Superadmin (BSCKII. Vũ Khương An) có thẩm quyền hợp nhất đợt nhập viện nội trú.")
-        scan_payload_notes({"reason": req.reason})
+        scan_payload_notes(req.model_dump(exclude_none=True))
         if req.source_episode_id == req.target_episode_id:
             raise DomainValidationError(
                 "SAME_EPISODE_RECONCILE_INVALID",

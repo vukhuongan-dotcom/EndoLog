@@ -1,6 +1,6 @@
 # BẢNG MA TRẬN PHÂN LOẠI TỆP TIN DỰ ÁN (FILE CLASSIFICATION MATRIX)
 **Dự án:** EndoLog (`endolog`) — Sổ Bộ Lâm Sàng & Đánh Giá Chất Lượng Nội Soi Tiêu Hóa (Bệnh viện Bình Dân)  
-**Phiên bản:** 1.7 (Gate A/B/C — Phase 1–5, Design System v1 Sync, Phase 4C Superadmin & Gate C GitHub Pages Clean-Room G1 · v0.3.1)
+**Phiên bản:** 1.8 (Gate A/B/C — Phase 1–5, Design System v1 Sync, Phase 4C Superadmin & Gate C GitHub Pages Interactive Virtual-Patient Sandbox G1+ · v0.3.2)
 **Tiêu chuẩn tham khảo:** ISO 15489-1:2016 Records Management (§8.3 Business Classification System & §9.4 Classification and Indexing)  
 **Căn cứ pháp lý tham chiếu:** Luật Khám bệnh, chữa bệnh số 15/2023/QH15, Luật Bảo vệ Dữ liệu Cá nhân số 91/2025/QH15, Nghị định số 356/2025/NĐ-CP
 

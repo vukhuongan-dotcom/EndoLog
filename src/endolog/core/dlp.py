@@ -20,6 +20,25 @@ PROTECTED_NOTE_FIELDS = {
     "complication_note",
     "ercp_procedure_note",
     "note",
+    "cecal_failure_reason",
+    "clinician_followup_note",
+    "referring_dept",
+    "operator_name",
+    "anatomical_site",
+    "paris_class",
+    "surface_pattern",
+    "forrest_class",
+    "hemostasis_modality",
+    "antithrombotic_status",
+    "imaging_modality",
+    "stricture_site",
+    "cannulation_technique",
+    "reason",
+    "full_name",
+    "resolved_full_name",
+    "history_flags",
+    "biliary_interventions",
+    "pep_prophylaxis",
 }
 
 
@@ -45,8 +64,18 @@ def scan_payload_notes(payload: Any, path_prefix: str = "") -> None:
     if isinstance(payload, dict):
         for k, v in payload.items():
             sub_path = f"{path_prefix}.{k}" if path_prefix else k
-            if k in PROTECTED_NOTE_FIELDS and isinstance(v, str):
-                scan_text_for_pii(v, field_path=sub_path)
+            if k in PROTECTED_NOTE_FIELDS:
+                if isinstance(v, str):
+                    scan_text_for_pii(v, field_path=sub_path)
+                elif isinstance(v, list):
+                    for idx, item in enumerate(v):
+                        item_path = f"{sub_path}[{idx}]"
+                        if isinstance(item, str):
+                            scan_text_for_pii(item, field_path=item_path)
+                        elif isinstance(item, (dict, list)):
+                            scan_payload_notes(item, path_prefix=item_path)
+                elif isinstance(v, dict):
+                    scan_payload_notes(v, path_prefix=sub_path)
             elif isinstance(v, (dict, list)):
                 scan_payload_notes(v, path_prefix=sub_path)
     elif isinstance(payload, list):

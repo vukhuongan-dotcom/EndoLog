@@ -204,7 +204,7 @@ def verify_git_clean_room(repo_root: Path, *, require_gitleaks: bool = False) ->
 def verify_dist_pages_bundle(
     dist_dir: Path,
     *,
-    base_path: str = "/endolog/",
+    base_path: str = "/EndoLog/",
     require_gitleaks: bool = False,
 ) -> tuple[list[str], dict[str, Any]]:
     errors: list[str] = []
@@ -267,6 +267,16 @@ def verify_dist_pages_bundle(
         errors.append("[dist_pages/index.html] Vẫn còn thẻ input[type=file]!")
     if SHOWCASE_BANNER_TEXT_VI not in html_text:
         errors.append("[dist_pages/index.html] Thiếu nguyên văn thông điệp cảnh báo đầu trang chuẩn Mục 4.B.1.")
+    for ro_id in (
+        "el-f-full-name",
+        "el-f-hospital-mrn",
+        "el-f-operator",
+        "el-admin-merge-reason",
+        "el-admin-reconcile-reason",
+    ):
+        tag_m = re.search(rf'<input\b[^>]*\bid="{ro_id}"[^>]*>', html_text)
+        if not tag_m or not re.search(r"\breadonly\b", tag_m.group(0), flags=re.I):
+            errors.append(f"[dist_pages/index.html] Ô nhập #{ro_id} chưa được khóa readonly bảo vệ Zero-PHI.")
 
     # Verify every <label for="..."> in dist_pages/index.html resolves to an existing id="..."
     present_ids = set(re.findall(r'\bid="([^"]+)"', html_text))
@@ -385,7 +395,7 @@ def main() -> int:
     parser.add_argument("--check-git", action="store_true", help="Check git ls-files + full git log + gitleaks git.")
     parser.add_argument("--check-dist", action="store_true", help="Check dist_pages/ static bundle + gitleaks dir.")
     parser.add_argument("--dist-dir", default=str(REPO_ROOT / "dist_pages"), help="Path to built Pages bundle.")
-    parser.add_argument("--base-path", default="/endolog/", help="Expected Pages subpath (default: /endolog/).")
+    parser.add_argument("--base-path", default="/EndoLog/", help="Expected Pages subpath (default: /EndoLog/).")
     parser.add_argument("--require-gitleaks", action="store_true", help="Fail if gitleaks binary is not installed.")
     args = parser.parse_args()
 

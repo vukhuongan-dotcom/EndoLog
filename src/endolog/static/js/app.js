@@ -3410,6 +3410,7 @@
       expected_version: drawerState.expectedVersion,
       expected_store_epoch: drawerState.expectedStoreEpoch,
       procedure_start_at: procIso,
+      operator_name: (byId('el-f-operator') && byId('el-f-operator').value.trim()) || 'ThS. BSCKI. Nguyễn Bình An',
       indication: (byId('el-f-indication') && byId('el-f-indication').value) || TRACK_DEFAULT_INDICATION[tr],
       indication_detail: (byId('el-f-indication-detail') && byId('el-f-indication-detail').value.trim()) || '',
       has_ibd_or_polyposis: tr === 'COL' ? Boolean(drawerState.hasIbdOrPolyposis) : false,

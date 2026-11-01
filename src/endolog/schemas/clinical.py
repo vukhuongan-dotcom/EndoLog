@@ -2,9 +2,53 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+import datetime as dt
+import re
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_ISO_TS_OR_DATE_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:\d{2})?)?$"
+)
+
+
+def _check_iso_date(v: str) -> str:
+    if not _ISO_DATE_RE.match(v):
+        raise ValueError("Ngày lịch bắt buộc theo chuẩn ISO YYYY-MM-DD.")
+    dt.date.fromisoformat(v)
+    return v
+
+
+def _check_iso_timestamp_or_date(v: str) -> str:
+    m = _ISO_TS_OR_DATE_RE.match(v)
+    if not m:
+        raise ValueError("Thời điểm bắt buộc theo chuẩn ISO YYYY-MM-DD hoặc YYYY-MM-DDTHH:MM[:SS].")
+    dt.date.fromisoformat(m.group(1))
+    if m.group(2) is not None:
+        hh = int(m.group(2))
+        mm = int(m.group(3))
+        ss = int(m.group(4)) if m.group(4) is not None else 0
+        if not (0 <= hh <= 23 and 0 <= mm <= 59 and 0 <= ss <= 59):
+            raise ValueError("Giờ/phút/giây trong thời điểm ISO không hợp lệ.")
+    return v
+
+
+NonEmptyIdStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+TrimmedUidStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=4, max_length=80)]
+TrimmedPersonNameStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=120)]
+TrimmedReasonStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=300)]
+IsoDateStr = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=10, max_length=10),
+    AfterValidator(_check_iso_date),
+]
+IsoTimestampOrDateStr = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=10, max_length=64),
+    AfterValidator(_check_iso_timestamp_or_date),
+]
 
 TrackType = Literal["EGD", "COL", "ERCP"]
 CareSettingType = Literal["INPATIENT", "OUTPATIENT"]
@@ -177,7 +221,7 @@ class ErcpProcedureDetail(BaseModel):
 class AdverseEventRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    ae_id: str
+    ae_id: NonEmptyIdStr
     window: Literal["INTRAPROCEDURAL", "INPATIENT_EARLY", "DELAYED_30D"] = "INPATIENT_EARLY"
     event_type: Literal["PEP", "BLEEDING", "PERFORATION", "CHOLANGITIS", "CARDIOPULMONARY", "OTHER"] = "OTHER"
     pep_severity: PepSeverityType = "NONE"
@@ -193,20 +237,20 @@ class CaseCreateRequest(BaseModel):
     # Patient & Admission Episode linkage (OD-04)
     patient_uid: str | None = None
     confirm_outpatient_new_patient: bool = False
-    full_name: str = Field(..., min_length=2, max_length=120)
+    full_name: TrimmedPersonNameStr
     birth_year: int = Field(..., ge=1900, le=2026)
     sex: SexType = "M"
     hospital_mrn: str | None = Field(default=None, max_length=40)
     care_setting: CareSettingType = "OUTPATIENT"
     episode_id: str | None = None
-    admission_date: str | None = None
+    admission_date: IsoDateStr | None = None
     referring_dept: str = "Khoa Nội soi Tiêu hóa"
     prior_unrecorded_ercp_offset: int = Field(default=0, ge=0, le=20)
 
     # Core Case Phase 1..4 (non-blocking)
     track: TrackType
-    procedure_start_at: str
-    operator_name: str = "ThS. BSCKI. Nguyễn Bình An"
+    procedure_start_at: IsoTimestampOrDateStr
+    operator_name: TrimmedPersonNameStr = "ThS. BSCKI. Nguyễn Bình An"
     indication: ColoIndicationType = "DIAGNOSTIC"
     indication_detail: str = ""
     has_ibd_or_polyposis: bool = False
@@ -219,7 +263,7 @@ class CaseCreateRequest(BaseModel):
     withdrawal_time_clean_min: float | None = Field(default=None, ge=0, le=180)
     pathology_completion_status: PathologyCompletionType = "NOT_APPLICABLE"
     followup_30d_status: Followup30dStatusType = "PENDING_WINDOW"
-    clinician_followup_due_date: str | None = None
+    clinician_followup_due_date: IsoDateStr | None = None
     clinician_followup_note: str = ""
     index_lesion: IndexLesion | None = None
     whole_case_summary: WholeCasePolypSummary | None = None
@@ -247,7 +291,8 @@ class CasePhasePatchRequest(BaseModel):
 
     expected_version: int = Field(..., ge=1)
     expected_store_epoch: int | None = Field(default=None, ge=1)
-    procedure_start_at: str | None = None
+    procedure_start_at: IsoTimestampOrDateStr | None = None
+    operator_name: TrimmedPersonNameStr | None = None
     referring_dept: str | None = None
     prior_unrecorded_ercp_offset: int | None = Field(default=None, ge=0, le=20)
     indication: ColoIndicationType | None = None
@@ -256,7 +301,7 @@ class CasePhasePatchRequest(BaseModel):
     exclude_from_cir: bool | None = None
     pathology_completion_status: PathologyCompletionType | None = None
     followup_30d_status: Followup30dStatusType | None = None
-    clinician_followup_due_date: str | None = None
+    clinician_followup_due_date: IsoDateStr | None = None
     clinician_followup_note: str | None = None
     bbps_right: int | None = Field(default=None, ge=0, le=3)
     bbps_transverse: int | None = Field(default=None, ge=0, le=3)
@@ -283,7 +328,7 @@ class AdminPasswordResetRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     new_password: str = Field(..., min_length=12, max_length=128)
-    reason: str = Field(default="Đặt lại mật khẩu quản trị", min_length=3, max_length=300)
+    reason: TrimmedReasonStr = "Đặt lại mật khẩu quản trị"
 
 
 class ProfileARestoreRequest(BaseModel):
@@ -301,31 +346,31 @@ class ProfileARestoreRequest(BaseModel):
 class PatientMergeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    source_patient_uid: str = Field(..., min_length=4, max_length=80)
-    target_patient_uid: str = Field(..., min_length=4, max_length=80)
+    source_patient_uid: TrimmedUidStr
+    target_patient_uid: TrimmedUidStr
     expected_store_epoch: int = Field(..., ge=1)
     source_expected_version: int = Field(..., ge=1)
     target_expected_version: int = Field(..., ge=1)
     expected_source_case_ids: list[str] = Field(default_factory=list)
     confirm_demographic_conflict: bool = False
-    resolved_full_name: str | None = Field(default=None, min_length=2, max_length=120)
+    resolved_full_name: TrimmedPersonNameStr | None = None
     resolved_birth_year: int | None = Field(default=None, ge=1900, le=2026)
     resolved_sex: SexType | None = None
     confirm_distinct_mrn_override: bool = False
     primary_mrn_choice: Literal["TARGET", "SOURCE"] = "TARGET"
-    reason: str = Field(default="Gộp hồ sơ người bệnh trùng lặp", min_length=3, max_length=300)
+    reason: TrimmedReasonStr = "Gộp hồ sơ người bệnh trùng lặp"
 
 
 class EpisodeReconcileRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    patient_uid: str = Field(..., min_length=4, max_length=80)
-    source_episode_id: str = Field(..., min_length=4, max_length=80)
-    target_episode_id: str = Field(..., min_length=4, max_length=80)
+    patient_uid: TrimmedUidStr
+    source_episode_id: TrimmedUidStr
+    target_episode_id: TrimmedUidStr
     expected_store_epoch: int = Field(..., ge=1)
     expected_case_ids: list[str] = Field(default_factory=list)
     resolved_prior_unrecorded_ercp_offset: int = Field(..., ge=0, le=20)
-    reason: str = Field(default="Hợp nhất đợt nhập viện nội trú trùng lặp", min_length=3, max_length=300)
+    reason: TrimmedReasonStr = "Hợp nhất đợt nhập viện nội trú trùng lặp"
 
 
 class StoredSettingsRecord(BaseModel):
@@ -357,9 +402,9 @@ class StoredUserRecord(BaseModel):
 class StoredPatientRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    patient_uid: str = Field(..., min_length=4, max_length=80)
-    full_name: str = Field(..., min_length=2, max_length=120)
-    privacy_initials: str = Field(..., min_length=1, max_length=20)
+    patient_uid: TrimmedUidStr
+    full_name: TrimmedPersonNameStr
+    privacy_initials: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)]
     birth_year: int = Field(..., ge=1900, le=2026)
     sex: SexType
     hospital_mrn: str | None = Field(default=None, max_length=40)
@@ -378,11 +423,11 @@ class StoredPatientRecord(BaseModel):
 class StoredEpisodeRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    episode_id: str = Field(..., min_length=4, max_length=80)
-    patient_uid: str = Field(..., min_length=4, max_length=80)
+    episode_id: TrimmedUidStr
+    patient_uid: TrimmedUidStr
     care_setting: CareSettingType
-    admission_date: str
-    discharge_date: str | None = None
+    admission_date: IsoDateStr
+    discharge_date: IsoDateStr | None = None
     referring_dept: str = "Khoa Nội soi Tiêu hóa"
     prior_unrecorded_ercp_offset: int = Field(default=0, ge=0, le=20)
     created_at: str
@@ -394,16 +439,16 @@ class StoredEpisodeRecord(BaseModel):
 class StoredCaseRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    case_id: str = Field(..., min_length=4, max_length=80)
+    case_id: TrimmedUidStr
     case_code: str = Field(..., min_length=8, max_length=32)
-    patient_uid: str = Field(..., min_length=4, max_length=80)
-    episode_id: str = Field(..., min_length=4, max_length=80)
+    patient_uid: TrimmedUidStr
+    episode_id: TrimmedUidStr
     track: TrackType
     care_setting: CareSettingType
-    procedure_start_at: str
+    procedure_start_at: IsoTimestampOrDateStr
     created_at: str
     updated_at: str
-    operator_name: str
+    operator_name: TrimmedPersonNameStr
     indication: ColoIndicationType = "DIAGNOSTIC"
     indication_detail: str = ""
     has_ibd_or_polyposis: bool = False
@@ -417,7 +462,7 @@ class StoredCaseRecord(BaseModel):
     withdrawal_time_clean_min: float | None = Field(default=None, ge=0, le=180)
     pathology_completion_status: PathologyCompletionType = "NOT_APPLICABLE"
     followup_30d_status: Followup30dStatusType = "PENDING_WINDOW"
-    clinician_followup_due_date: str | None = None
+    clinician_followup_due_date: IsoDateStr | None = None
     clinician_followup_note: str = ""
     index_lesion: IndexLesion | None = None
     whole_case_summary: WholeCasePolypSummary | None = None
@@ -444,7 +489,7 @@ class StoredSurveillanceRecord(BaseModel):
     reference_interval_code: str | None = None
     reference_interval_label: str | None = None
     is_divergent_guideline: bool = False
-    due_date: str | None = None
+    due_date: IsoDateStr | None = None
     surgical_consult_target_dept: str | None = None
     reason: str
     status: str

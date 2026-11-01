@@ -61,11 +61,13 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: python tools/verify_gate_c_clean_room.py --check-git --require-gitleaks
 
-      - name: Gate C.2 — Run Full Automated Pytest Suite
+      - name: Gate C.2 — Run Full Automated Pytest Suite & Python-Node Differential Parity Gate
         env:
           PYTHONPATH: .:src
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python -m pytest -p no:cacheprovider -v
+        run: |
+          python -m pytest -p no:cacheprovider tests/test_gh_pages_demo_g06.py tests/test_gh_pages_interactive_parity.py -v
+          python -m pytest -p no:cacheprovider -v
 
       - name: Gate C.3 — Verify WCAG 2.1 AA Contrast (62/62) & Dual SSoT Parity
         env:
